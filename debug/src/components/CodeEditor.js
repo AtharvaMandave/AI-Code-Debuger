@@ -8,6 +8,9 @@ const LANGUAGES = [
   { label: 'TypeScript', value: 'typescript' },
   { label: 'JSON', value: 'json' },
   { label: 'Markdown', value: 'markdown' },
+  { label: 'C++', value: 'cpp' },
+  { label: 'Java', value: 'java' },
+  { label: 'C', value: 'c' },
 ];
 
 function Toast({ message, type, onClose }) {
@@ -23,13 +26,14 @@ function Toast({ message, type, onClose }) {
   );
 }
 
-export default function CodeEditor({ value, language, onChange, onLanguageChange, onSubmit, loading }) {
+export default function CodeEditor({ value, language, onChange, onLanguageChange, onSubmit, loading, highlightLines = [] }) {
   const editorRef = useRef(null);
   const containerRef = useRef(null);
   const monacoInstance = useRef(null);
   const [isFocused, setIsFocused] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' });
   const showToast = (message, type = 'success') => setToast({ message, type });
+  const decorationsRef = useRef([]);
 
   useEffect(() => {
     // Dynamically load Monaco
@@ -83,6 +87,64 @@ export default function CodeEditor({ value, language, onChange, onLanguageChange
     }
   }, [language, value]);
 
+  // Highlight lines when highlightLines prop changes
+  useEffect(() => {
+    if (editorRef.current && monacoInstance.current) {
+      const model = editorRef.current.getModel();
+      if (!model) return;
+      // Remove previous decorations
+      decorationsRef.current = editorRef.current.deltaDecorations(
+        decorationsRef.current,
+        []
+      );
+      if (highlightLines && highlightLines.length > 0) {
+        // Support both single lines and ranges
+        const decs = highlightLines.map((hl) => {
+          if (typeof hl === 'number') {
+            return {
+              range: new monacoInstance.current.Range(hl, 1, hl, 1),
+              options: {
+                isWholeLine: true,
+                className: 'monaco-highlight-line',
+                inlineClassName: '',
+                linesDecorationsClassName: '',
+                glyphMarginClassName: '',
+                minimap: { color: '#facc15', position: 1 },
+                inlineClassNameAffectsLetterSpacing: true,
+                backgroundColor: 'rgba(250,204,21,0.25)', // yellow-400/25
+              },
+            };
+          } else if (hl && typeof hl === 'object' && hl.start && hl.end) {
+            return {
+              range: new monacoInstance.current.Range(hl.start, 1, hl.end, 1),
+              options: {
+                isWholeLine: true,
+                className: 'monaco-highlight-line',
+                backgroundColor: 'rgba(250,204,21,0.25)',
+              },
+            };
+          }
+          return null;
+        }).filter(Boolean);
+        decorationsRef.current = editorRef.current.deltaDecorations(
+          decorationsRef.current,
+          decs
+        );
+      }
+    }
+  }, [highlightLines]);
+
+  // Add highlight style
+  if (typeof window !== 'undefined') {
+    const styleId = 'monaco-highlight-line-style';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `.monaco-highlight-line { background: rgba(250,204,21,0.25) !important; }`;
+      document.head.appendChild(style);
+    }
+  }
+
   // Copy code to clipboard
   const handleCopy = () => {
     if (editorRef.current) {
@@ -91,7 +153,7 @@ export default function CodeEditor({ value, language, onChange, onLanguageChange
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-zinc-900/90 dark:bg-zinc-900 rounded-2xl shadow-2xl p-0 mb-8 relative animate-fade-in">
+    <div className="w-full max-w-4xl mx-auto bg-zinc-900/90 dark:bg-zinc-900 rounded-2xl shadow-2xl p-0 mb-8 relative animate-fade-in mt-6">
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: 'success' })} />
       {/* Top bar with language selector and copy icon */}
       <div className="flex justify-between items-center px-4 pt-4 pb-2">

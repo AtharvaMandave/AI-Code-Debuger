@@ -1,5 +1,8 @@
+'use client'
 import Image from "next/image";
 import Link from 'next/link';
+import { useContext } from 'react';
+import { ThemeContext } from '../components/ClientLayout';
 
 const features = [
   {
@@ -25,23 +28,11 @@ const features = [
 ];
 
 export default function LandingPage() {
+  const { dark, setDark } = useContext(ThemeContext);
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-zinc-100 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900 transition-colors">
-      {/* Navbar */}
-      <nav className="w-full flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-zinc-900/80 shadow-sm sticky top-0 z-40 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent drop-shadow">AI Debugger</span>
-        </div>
-        <div className="flex gap-6 text-base font-medium">
-          <Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Home</Link>
-          <Link href="/debug" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Debug</Link>
-          <Link href="/history" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">History</Link>
-          <Link href="#about" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">About</Link>
-        </div>
-      </nav>
-
+    <div className="min-h-[80vh] bg-gradient-to-br from-blue-50 via-white to-zinc-100 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900 transition-colors">
       {/* Hero Section */}
-      <section className="relative flex flex-col-reverse md:flex-row items-center justify-between w-full max-w-6xl mx-auto min-h-[520px] py-12 md:py-24 px-4 md:px-8 overflow-hidden">
+      <section className="relative flex flex-col-reverse md:flex-row items-center justify-between w-full max-w-6xl mx-auto min-h-[420px] py-6 md:py-12 px-4 md:px-8 overflow-hidden">
         {/* Blurred blobs background */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 opacity-30 rounded-full blur-3xl animate-pulse" />
@@ -83,7 +74,7 @@ export default function LandingPage() {
       </div>
 
       {/* About Section */}
-      <section id="about" className="max-w-3xl mx-auto px-4 py-16 text-center">
+      <section id="about" className="max-w-3xl mx-auto px-4 py-12 text-center">
         <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">About AI Debugger</h2>
         <p className="text-zinc-700 dark:text-zinc-200 text-lg mb-4">
           AI Debugger is your all-in-one tool for code analysis, bug detection, and visualization. Powered by Gemini AI and built with Next.js, it helps developers of all levels understand, debug, and improve their code faster than ever before.

@@ -39,7 +39,7 @@ export default function Explanation({ aiResponse }) {
   const { explanation, bugs_detected, issues, suggested_fix, line_by_line } = aiResponse;
 
   return (
-    <div className="bg-zinc-100 dark:bg-zinc-800 p-6 rounded-xl shadow w-full">
+    <div className="bg-zinc-100 dark:bg-zinc-900/80 p-6 rounded-xl shadow w-full max-w-2xl ml-0 md:ml-8 mt-6 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100">
       <h2 className="text-xl font-bold mb-2">AI Explanation</h2>
       <p className="mb-4">{explanation}</p>
 

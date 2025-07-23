@@ -35,7 +35,15 @@ export default function HistoryPage({ snippets }) {
             <div key={snippet._id} className="bg-zinc-900/90 rounded-2xl shadow-xl p-6 flex flex-col border border-zinc-800 hover:scale-105 hover:shadow-2xl transition-all duration-200">
               <div className="flex items-center justify-between mb-2">
                 <span className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white text-xs font-semibold uppercase tracking-wider">{snippet.language}</span>
-                <span className="text-xs text-zinc-400">{snippet.createdAt && new Date(snippet.createdAt).toLocaleString()}</span>
+                <span className="text-xs text-zinc-400">{snippet.createdAt && new Date(snippet.createdAt).toLocaleString('en-GB', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false,
+                })}</span>
               </div>
               <pre className="bg-zinc-800 rounded-lg p-3 text-xs overflow-x-auto mb-4 border border-zinc-700"><code>{truncateCode(snippet.code)}</code></pre>
               <Link href={`/history/${snippet._id}`} legacyBehavior>
