@@ -1,6 +1,7 @@
 // import fetch from 'node-fetch'; // Not needed in Next.js API routes (Node 18+)
 import dbConnect from '../../lib/db';
 import Snippet from '../../models/Snippet';
+import { getAuth } from '@clerk/nextjs/server';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,6 +16,13 @@ export default async function handler(req, res) {
   const prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs\nSuggest corrections\nExplain in plain English\nBreak down line-by-line\nReturn a flowchart-friendly JSON of code logic\n\nCode:\n${code}\n\nRespond in JSON:\n{\n"explanation": "...",\n"bugs_detected": true,\n"issues": [],\n"suggested_fix": "...",\n"line_by_line": {},\n"visualization": {\n"nodes": [...],\n"edges": [...]\n}\n}`;
 
   try {
+    // Get Clerk user ID
+    const { userId } = getAuth(req);
+    console.log('DEBUG: Clerk userId:', userId);
+    if (!userId) {
+      console.error('DEBUG: Not authenticated - Clerk userId missing');
+      return res.status(401).json({ error: 'Not authenticated', debug: 'Clerk userId missing' });
+    }
     // Gemini API endpoint and payload
     const geminiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + process.env.GEMINI_API_KEY, {
       method: 'POST',
@@ -75,6 +83,7 @@ export default async function handler(req, res) {
         language: language || 'unknown',
         aiResponse,
         createdAt: new Date(),
+        userId,
       });
     } catch (dbErr) {
       // Log and return error

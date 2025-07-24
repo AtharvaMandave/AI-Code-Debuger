@@ -3,10 +3,19 @@ import dbConnect from '../lib/db';
 import Snippet from '../models/Snippet';
 import Link from 'next/link';
 import '../app/globals.css';
+import { getAuth } from '@clerk/nextjs/server';
 
-export async function getServerSideProps() {
+export async function getServerSideProps(context) {
   await dbConnect();
-  const snippets = await Snippet.find({}, null, { sort: { createdAt: -1 } }).lean();
+  const { userId } = getAuth(context.req);
+  console.log('DEBUG: History userId:', userId);
+  if (!userId) {
+    return {
+      props: { snippets: [] },
+    };
+  }
+  const snippets = await Snippet.find({ userId }, null, { sort: { createdAt: -1 } }).lean();
+  console.log('DEBUG: History snippets found:', snippets.length);
   return {
     props: {
       snippets: snippets.map(s => ({

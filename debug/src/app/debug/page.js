@@ -5,9 +5,11 @@ import Explanation from '../../components/Explanation';
 import Visualizer from '../../components/Visualizer';
 import Link from 'next/link';
 import { ThemeContext } from '../../components/ClientLayout';
+import { useUser, SignInButton } from '@clerk/nextjs';
 
 export default function DebugPage() {
   const { dark, setDark } = useContext(ThemeContext);
+  const { isSignedIn } = useUser();
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('javascript');
   const [aiResponse, setAiResponse] = useState(null);
@@ -18,6 +20,19 @@ export default function DebugPage() {
   const showToast = (message, type = 'success') => setToast({ message, type });
   const [view, setView] = useState('debug'); // 'debug' or 'visualize'
   const [highlightedLines, setHighlightedLines] = useState([]); // <-- new state
+
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-zinc-900">
+        <div className="bg-zinc-100 dark:bg-zinc-800 p-8 rounded-xl shadow-lg flex flex-col items-center">
+          <h2 className="text-2xl font-bold mb-4">Sign in to use the AI Debugger</h2>
+          <SignInButton>
+            <button className="px-6 py-3 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-semibold text-lg shadow hover:scale-105 transition-all duration-200">Sign In</button>
+          </SignInButton>
+        </div>
+      </div>
+    );
+  }
 
   const handleAnalyze = async (e) => {
     e.preventDefault();

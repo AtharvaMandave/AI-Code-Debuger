@@ -4,11 +4,16 @@ import Snippet from '../../models/Snippet';
 import Explanation from '../../components/Explanation';
 import Visualizer from '../../components/Visualizer';
 import React from 'react';
+import { getAuth } from '@clerk/nextjs/server';
 
 export async function getServerSideProps(context) {
   await dbConnect();
   const { id } = context.query;
-  const snippet = await Snippet.findById(id).lean();
+  const { userId } = getAuth(context.req);
+  if (!userId) {
+    return { notFound: true };
+  }
+  const snippet = await Snippet.findOne({ _id: id, userId }).lean();
   if (!snippet) {
     return { notFound: true };
   }
