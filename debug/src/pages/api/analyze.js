@@ -50,15 +50,8 @@ export default async function handler(req, res) {
       content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       // Try to extract JSON from code block or text
       let jsonText = content;
-      // Remove markdown code fences if present
-      const match = content.match(/```(?:json)?([\s\S]*?)```/i);
-      if (match) {
-        jsonText = match[1].trim();
-      } else {
-        // Try to find the first {...} block
-        const curly = content.match(/({[\s\S]*})/);
-        if (curly) jsonText = curly[1];
-      }
+      jsonText = extractJsonFromMarkdown(jsonText);
+      console.log('DEBUG: Extracted jsonText:', jsonText); // Debug log
       aiResponse = JSON.parse(jsonText);
       // Normalize issues to array of strings for frontend compatibility
       if (Array.isArray(aiResponse.issues)) {
@@ -96,4 +89,20 @@ export default async function handler(req, res) {
     console.error('Server error:', err);
     return res.status(500).json({ error: 'Server error', details: err.message });
   }
+}
+
+// Utility to robustly extract JSON from Markdown code block or plain text
+function extractJsonFromMarkdown(content) {
+  if (!content) return '';
+  // Try to extract the first code block (with or without 'json')
+  const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch) {
+    content = codeBlockMatch[1];
+  }
+  // If no code block, try to extract the first {...} JSON object
+  const jsonMatch = content.match(/{[\s\S]*}/);
+  if (jsonMatch) {
+    content = jsonMatch[0];
+  }
+  return content.trim();
 } 
