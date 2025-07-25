@@ -29,6 +29,9 @@ export default function DebugPage() {
   const [debugMode, setDebugMode] = useState(false);
   const [complexity, setComplexity] = useState('beginner'); // 'beginner', 'intermediate', 'expert'
   const [structureTimeline, setStructureTimeline] = useState(null);
+  const [resourceSuggestions, setResourceSuggestions] = useState(null);
+  const [resourceLoading, setResourceLoading] = useState(false);
+  const [resourceError, setResourceError] = useState(null);
 
   if (!isSignedIn) {
     return (
@@ -120,6 +123,30 @@ export default function DebugPage() {
     });
   };
 
+  const handleSuggestResources = async () => {
+    setResourceLoading(true);
+    setResourceError(null);
+    setResourceSuggestions(null);
+    try {
+      const res = await fetch('/api/suggest-resources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: code }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setResourceError(err.error || 'Unknown error');
+        return;
+      }
+      const data = await res.json();
+      setResourceSuggestions(data);
+    } catch (err) {
+      setResourceError(err.message);
+    } finally {
+      setResourceLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900 transition-colors">
       {/* <h1 className="text-3xl font-bold mb-4 text-center mt-2">AI Debugger</h1> */}
@@ -160,6 +187,40 @@ export default function DebugPage() {
               loading={loading}
               highlightLines={highlightedLines}
             />
+            <button
+              type="button"
+              className="mt-2 px-4 py-2 rounded-full bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400 text-white font-semibold shadow hover:from-red-600 hover:to-yellow-500 transition-all"
+              onClick={handleSuggestResources}
+              disabled={resourceLoading || !code.trim()}
+            >
+              {resourceLoading ? 'Loading Suggestions...' : 'Suggest Resources'}
+            </button>
+            {resourceError && <div className="text-red-500 font-semibold mt-2">{resourceError}</div>}
+            {resourceSuggestions && (
+              <div className="mt-4 p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100">
+                <div className="font-bold text-lg mb-2">🔗 Resource Suggestions</div>
+                <div className="mb-2">
+                  <span className="font-semibold">▶️ YouTube Suggestions:</span>
+                  <ol className="list-decimal ml-6 mt-1">
+                    {resourceSuggestions.youtube.map((yt, i) => (
+                      <li key={i} className="mb-1">
+                        <a href={yt.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800">{yt.title}</a>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <div>
+                  <span className="font-semibold">📘 Documentation & Help Links:</span>
+                  <ul className="list-disc ml-6 mt-1">
+                    {resourceSuggestions.docs.map((doc, i) => (
+                      <li key={i} className="mb-1">
+                        <a href={doc} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800">{doc}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </form>
           {error && <div className="text-red-500 font-semibold mb-4">{error}</div>}
           {language === 'python' && (
