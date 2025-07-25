@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.25.5",
+    "@google/generative-ai": "^0.24.1",
     "mongoose": "^8.16.4",
     "next": "15.4.2",
     "postcss": "^8.5.6",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "react-syntax-highlighter": "^15.6.1",
     "reactflow": "^11.11.4",
     "tailwindcss": "^4.1.11"

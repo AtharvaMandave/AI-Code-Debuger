@@ -40,6 +40,7 @@ export default function ConvertPage() {
   const [translated, setTranslated] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
   // Debounce translation
   useEffect(() => {
@@ -126,13 +127,27 @@ export default function ConvertPage() {
           {/* Right: Translated Code Output */}
           <div className="flex-1 min-w-0 flex flex-col">
             <label className="block font-semibold mb-1 text-white dark:text-zinc-100">Translated Code</label>
-            <div className="flex-1 bg-zinc-900 dark:bg-zinc-900 rounded-lg p-0 min-h-[400px] max-h-[600px] flex flex-col justify-start">
+            <div className="flex-1 bg-zinc-900 dark:bg-zinc-900 rounded-lg p-0 min-h-[400px] max-h-[600px] flex flex-col justify-start relative">
               {loading ? (
                 <div className="text-blue-500 font-semibold animate-pulse p-4">Translating...</div>
               ) : translated ? (
-                <SyntaxHighlighter language={targetLang} style={vscDarkPlus} wrapLongLines customStyle={{ background: 'transparent', color: '#f4f4f5', margin: 0, minHeight: '100%' }}>
-                  {translated}
-                </SyntaxHighlighter>
+                <>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(translated);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    }}
+                    className="absolute top-2 right-2 bg-zinc-800 hover:bg-zinc-700 text-white p-1 rounded z-10"
+                    title="Copy code"
+                    aria-label="Copy code"
+                  >
+                    {copied ? '✅' : '📋'}
+                  </button>
+                  <SyntaxHighlighter language={targetLang} style={vscDarkPlus} wrapLongLines customStyle={{ background: 'transparent', color: '#f4f4f5', margin: 0, minHeight: '100%' }}>
+                    {translated}
+                  </SyntaxHighlighter>
+                </>
               ) : (
                 <div className="text-zinc-500 dark:text-zinc-300 italic p-4">Translation will appear here.</div>
               )}

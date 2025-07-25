@@ -8,12 +8,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { code, language } = req.body;
+  const { code, language, level } = req.body;
   if (!code) {
     return res.status(400).json({ error: 'No code provided' });
   }
 
-  const prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs\nSuggest corrections\nExplain in plain English\nBreak down line-by-line\nReturn a flowchart-friendly JSON of code logic\n\nCode:\n${code}\n\nRespond in JSON:\n{\n"explanation": "...",\n"bugs_detected": true,\n"issues": [],\n"suggested_fix": "...",\n"line_by_line": {},\n"visualization": {\n"nodes": [...],\n"edges": [...]\n}\n}`;
+  let prompt = '';
+  if (level === 'beginner') {
+    prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs\nSuggest corrections\nExplain in plain English for a beginner (ELI5). Use analogies, metaphors, and visuals. Avoid technical jargon. Use simple terms. Where possible, include related image URLs (e.g., for recursion, include an image of a stack of plates).\nBreak down line-by-line\nReturn a flowchart-friendly JSON of code logic.\n\nFor the visualization, each node should represent a logical block (loop, condition, function call, decision, etc.) and MUST include:\n- code_snippet: the code for that block\n- variables: object of variables in scope or changed in that block (if available)\n- line: line number or range for that block\n\nCode:\n${code}\n\nRespond in JSON:\n{\n"explanation": "...",\n"bugs_detected": true,\n"issues": [],\n"suggested_fix": "...",\n"line_by_line": {},\n"images": ["..."],\n"visualization": {\n"nodes": [ { "id": ..., "type": ..., "label": ..., "code_snippet": ..., "variables": ..., "line": ... } ],\n"edges": [...]\n}\n}`;
+  } else if (level === 'intermediate') {
+    prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs\nSuggest corrections\nExplain in clear, moderately technical English for an intermediate developer. Use some analogies if helpful.\nBreak down line-by-line\nReturn a flowchart-friendly JSON of code logic.\n\nFor the visualization, each node should represent a logical block (loop, condition, function call, decision, etc.) and MUST include:\n- code_snippet: the code for that block\n- variables: object of variables in scope or changed in that block (if available)\n- line: line number or range for that block\n\nCode:\n${code}\n\nRespond in JSON:\n{\n"explanation": "...",\n"bugs_detected": true,\n"issues": [],\n"suggested_fix": "...",\n"line_by_line": {},\n"visualization": {\n"nodes": [ { "id": ..., "type": ..., "label": ..., "code_snippet": ..., "variables": ..., "line": ... } ],\n"edges": [...]\n}\n}`;
+  } else {
+    prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs\nSuggest corrections\nExplain in technical detail for an expert developer. Use precise terminology and in-depth reasoning.\nBreak down line-by-line\nReturn a flowchart-friendly JSON of code logic.\n\nFor the visualization, each node should represent a logical block (loop, condition, function call, decision, etc.) and MUST include:\n- code_snippet: the code for that block\n- variables: object of variables in scope or changed in that block (if available)\n- line: line number or range for that block\n\nCode:\n${code}\n\nRespond in JSON:\n{\n"explanation": "...",\n"bugs_detected": true,\n"issues": [],\n"suggested_fix": "...",\n"line_by_line": {},\n"visualization": {\n"nodes": [ { "id": ..., "type": ..., "label": ..., "code_snippet": ..., "variables": ..., "line": ... } ],\n"edges": [...]\n}\n}`;
+  }
 
   try {
     // Get Clerk user ID

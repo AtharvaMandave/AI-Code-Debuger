@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 
 function renderDesc(desc) {
   if (desc == null) return '';
@@ -36,12 +36,50 @@ function renderDesc(desc) {
 export default function Explanation({ aiResponse }) {
   if (!aiResponse) return null;
 
-  const { explanation, bugs_detected, issues, suggested_fix, line_by_line } = aiResponse;
+  const { explanation, bugs_detected, issues, suggested_fix, line_by_line, images } = aiResponse;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const synthRef = useRef(null);
+
+  const handlePlayExplanation = () => {
+    if (!explanation) return;
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
+    }
+    const utter = new window.SpeechSynthesisUtterance(explanation);
+    synthRef.current = utter;
+    utter.onend = () => setIsPlaying(false);
+    utter.onerror = () => setIsPlaying(false);
+    setIsPlaying(true);
+    window.speechSynthesis.speak(utter);
+  };
 
   return (
     <div className="bg-zinc-100 dark:bg-zinc-900/80 p-6 rounded-xl shadow w-full max-w-2xl ml-0 md:ml-8 mt-6 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100">
       <h2 className="text-xl font-bold mb-2">AI Explanation</h2>
       <p className="mb-4">{explanation}</p>
+      {images && images.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-4">
+          {images.map((img, idx) => (
+            <img
+              key={idx}
+              src={img}
+              alt={`Illustration ${idx + 1}`}
+              className="max-h-40 rounded shadow border border-zinc-300 dark:border-zinc-700 bg-white"
+              style={{ maxWidth: '100%', objectFit: 'contain' }}
+            />
+          ))}
+        </div>
+      )}
+      {explanation && (
+        <button
+          onClick={handlePlayExplanation}
+          className="mt-2 mb-4 px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          {isPlaying ? '⏸️ Pause Explanation' : '🔊 Play Explanation'}
+        </button>
+      )}
 
       <h3 className="font-semibold mb-1">Bugs / Issues Found</h3>
       {bugs_detected && issues && issues.length > 0 ? (

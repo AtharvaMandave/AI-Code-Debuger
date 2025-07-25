@@ -17,7 +17,7 @@ export default function Navbar() {
           <NavLink href="/debug" label="Debug" />
           <NavLink href="/history" label="History" />
           <NavLink href="/convert" label="Convert" />
-          <NavLink href="/#about" label="About" />
+         
         </div>
         {/* User Actions */}
         <div className="flex items-center gap-3">

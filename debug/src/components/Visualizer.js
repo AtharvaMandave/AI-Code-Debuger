@@ -5,7 +5,8 @@ import ReactFlow, {
   MiniMap,
   useReactFlow,
   ReactFlowProvider
-} from 'react-flow-renderer';
+} from 'reactflow';
+import { useEffect } from 'react';
 
 // Icon SVGs
 const icons = {
@@ -95,6 +96,7 @@ function VisualizerInner({ aiResponse, setHighlightedLines }) {
   const [playbackIndex, setPlaybackIndex] = useState(0);
   const [playbackTimer, setPlaybackTimer] = useState(null);
   const [paused, setPaused] = useState(false);
+  const [nodeDetails, setNodeDetails] = useState(null);
 
   if (!aiResponse || !aiResponse.visualization) return null;
   const { nodes = [], edges = [] } = aiResponse.visualization;
@@ -202,6 +204,17 @@ function VisualizerInner({ aiResponse, setHighlightedLines }) {
   // Scroll to explanation
   const handleNodeClick = (id) => {
     setActiveNode(id);
+    const node = nodes.find(n => (n.id?.toString() || `node-${nodes.indexOf(n)}`) === id);
+    if (node && (node.code_snippet || node.variables)) {
+      setNodeDetails({
+        label: node.label || node.type,
+        code: node.code_snippet,
+        variables: node.variables,
+        line: node.line,
+      });
+    } else {
+      setNodeDetails(null);
+    }
     const el = document.getElementById(`explanation-${id}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -287,7 +300,30 @@ function VisualizerInner({ aiResponse, setHighlightedLines }) {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto bg-zinc-900/90 dark:bg-zinc-900 rounded-2xl shadow-2xl mt-8 p-0 animate-fade-in">
+    <div className="w-full max-w-6xl mx-auto bg-zinc-900/90 dark:bg-zinc-900 rounded-2xl shadow-2xl mt-8 p-0 animate-fade-in relative">
+      {/* Node Details Modal/Panel */}
+      {nodeDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setNodeDetails(null)}>
+          <div className="bg-zinc-800 rounded-xl shadow-2xl p-6 w-full max-w-md mx-auto relative" onClick={e => e.stopPropagation()}>
+            <button className="absolute top-2 right-2 text-zinc-400 hover:text-white text-xl" onClick={() => setNodeDetails(null)}>&times;</button>
+            <h4 className="text-lg font-bold mb-2 text-white">{nodeDetails.label}</h4>
+            {nodeDetails.line && <div className="text-xs text-zinc-300 mb-2">Line: {nodeDetails.line}</div>}
+            {nodeDetails.code && (
+              <pre className="bg-zinc-900 text-white rounded p-3 mb-3 text-sm overflow-x-auto border border-zinc-700">
+                {nodeDetails.code}
+              </pre>
+            )}
+            {nodeDetails.variables && Object.keys(nodeDetails.variables).length > 0 && (
+              <div className="mb-2">
+                <div className="font-semibold text-zinc-200 mb-1">Variables:</div>
+                <pre className="bg-zinc-900 text-blue-200 rounded p-2 text-xs overflow-x-auto border border-zinc-700">
+                  {JSON.stringify(nodeDetails.variables, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex justify-between items-center px-6 pt-6 pb-2">
         <h2 className="text-lg font-bold text-white">Code Logic Visualizer</h2>
         <div className="flex gap-2">
