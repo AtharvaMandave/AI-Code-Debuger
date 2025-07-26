@@ -25,10 +25,8 @@ export default async function handler(req, res) {
   try {
     // Get Clerk user ID
     const { userId } = getAuth(req);
-    console.log('DEBUG: Clerk userId:', userId);
     if (!userId) {
-      console.error('DEBUG: Not authenticated - Clerk userId missing');
-      return res.status(401).json({ error: 'Not authenticated', debug: 'Clerk userId missing' });
+      return res.status(401).json({ error: 'Not authenticated' });
     }
     // Gemini API endpoint and payload
     const geminiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + process.env.GEMINI_API_KEY, {
@@ -58,8 +56,55 @@ export default async function handler(req, res) {
       // Try to extract JSON from code block or text
       let jsonText = content;
       jsonText = extractJsonFromMarkdown(jsonText);
-      console.log('DEBUG: Extracted jsonText:', jsonText); // Debug log
-      aiResponse = JSON.parse(jsonText);
+      
+      // Debug: Log the extracted JSON for troubleshooting
+      console.log('Extracted JSON length:', jsonText.length);
+      console.log('Extracted JSON preview:', jsonText.substring(0, 200));
+      
+      // Try to parse JSON with error handling
+      try {
+        aiResponse = JSON.parse(jsonText);
+      } catch (parseError) {
+        // If parsing fails, try to clean the JSON more aggressively
+        console.log('Initial JSON parse failed, attempting to clean...');
+        
+        // Remove all control characters except newlines and tabs
+        let cleanedJson = jsonText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+        
+        // Try parsing again
+        try {
+          aiResponse = JSON.parse(cleanedJson);
+          console.log('JSON parse successful after cleaning');
+        } catch (secondError) {
+          console.log('Second parse attempt failed:', secondError.message);
+          
+          // Last resort: try to extract basic information manually
+          console.log('Attempting manual extraction...');
+          try {
+            const explanationMatch = jsonText.match(/"explanation":\s*"([^"]*(?:\\.[^"]*)*)"/);
+            const bugsMatch = jsonText.match(/"bugs_detected":\s*(true|false)/);
+            const issuesMatch = jsonText.match(/"issues":\s*\[([^\]]*)\]/);
+            
+            if (explanationMatch) {
+              aiResponse = {
+                explanation: explanationMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n'),
+                bugs_detected: bugsMatch ? bugsMatch[1] === 'true' : false,
+                issues: issuesMatch ? [] : [],
+                suggested_fix: "Unable to parse full response due to JSON formatting issues.",
+                line_by_line: {},
+                images: [],
+                visualization: { nodes: [], edges: [] }
+              };
+              console.log('Manual extraction successful');
+            } else {
+              throw parseError; // Throw the original error if manual extraction fails
+            }
+          } catch (manualError) {
+            console.log('Manual extraction failed:', manualError.message);
+            throw parseError; // Throw the original error
+          }
+        }
+      }
       // Normalize issues to array of strings for frontend compatibility
       if (Array.isArray(aiResponse.issues)) {
         aiResponse.issues = aiResponse.issues.map(issue => {
@@ -71,8 +116,22 @@ export default async function handler(req, res) {
         });
       }
     } catch (e) {
-      console.error('Failed to parse Gemini response:', {data, content});
-      return res.status(500).json({ error: 'Failed to parse Gemini response', details: data, content, parseError: e.message });
+      console.error('Failed to parse Gemini response:', e.message);
+      console.error('Content length:', content.length);
+      console.error('Content preview:', content.substring(0, 200));
+      
+      // Provide more specific error information
+      let errorDetails = e.message;
+      if (e.message.includes('Bad control character')) {
+        errorDetails = 'JSON contains invalid control characters. This is likely due to unescaped newlines or special characters in the AI response.';
+      }
+      
+      return res.status(500).json({ 
+        error: 'Failed to parse Gemini response', 
+        details: errorDetails,
+        contentPreview: content.substring(0, 200) + '...',
+        contentLength: content.length
+      });
     }
 
     // Save to MongoDB
@@ -101,15 +160,35 @@ export default async function handler(req, res) {
 // Utility to robustly extract JSON from Markdown code block or plain text
 function extractJsonFromMarkdown(content) {
   if (!content) return '';
+  
   // Try to extract the first code block (with or without 'json')
   const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (codeBlockMatch) {
     content = codeBlockMatch[1];
   }
+  
   // If no code block, try to extract the first {...} JSON object
   const jsonMatch = content.match(/{[\s\S]*}/);
   if (jsonMatch) {
     content = jsonMatch[0];
   }
-  return content.trim();
+  
+  // Clean up the content - handle escaped characters
+  content = content.trim();
+  
+  // Replace escaped newlines and quotes that might cause parsing issues
+  content = content.replace(/\\n/g, '\n');
+  content = content.replace(/\\"/g, '"');
+  content = content.replace(/\\\\/g, '\\');
+  
+  // Handle control characters that break JSON parsing
+  content = content.replace(/\r/g, ''); // Remove carriage returns
+  content = content.replace(/\t/g, ' '); // Replace tabs with spaces
+  content = content.replace(/\f/g, ''); // Remove form feeds
+  content = content.replace(/\b/g, ''); // Remove backspace characters
+  
+  // Clean up any remaining problematic characters in string literals
+  content = content.replace(/(?<="[^"]*)[^\x20-\x7E](?=[^"]*")/g, ' ');
+  
+  return content;
 } 
