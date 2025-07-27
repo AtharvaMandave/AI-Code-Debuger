@@ -62,6 +62,32 @@ export default function StepDebugger({ debugSteps, currentStepIndex, onStepChang
         )}
       </div>
 
+      {/* Bounds Check Warning */}
+      {currentStep.boundsCheck && !currentStep.boundsCheck.isValid && (
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg">
+          <div className="flex items-center mb-2">
+            <span className="text-red-600 dark:text-red-400 font-semibold mr-2">⚠️ Bounds Issue Detected</span>
+          </div>
+          <div className="text-sm text-red-700 dark:text-red-300 mb-2">
+            <strong>Issue:</strong> {currentStep.boundsCheck.issue}
+          </div>
+          {currentStep.boundsCheck.suggestion && (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              <strong>Suggestion:</strong> {currentStep.boundsCheck.suggestion}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bounds Check Success */}
+      {currentStep.boundsCheck && currentStep.boundsCheck.isValid && (
+        <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg">
+          <div className="flex items-center">
+            <span className="text-green-600 dark:text-green-400 font-semibold mr-2">✅ Bounds Check Passed</span>
+          </div>
+        </div>
+      )}
+
       {/* Variables Display */}
       <div className="mb-4">
         <h3 className="font-semibold mb-2">Variables:</h3>

@@ -1,3 +1,5 @@
+import { extractJsonFromMarkdown, parseJsonRobustly, truncateJsonIfNeeded } from '../../lib/json-parser';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -8,15 +10,28 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No code provided' });
   }
 
-  const prompt = `You are an AI algorithm debugger. Analyze the given code step-by-step and return ONLY a valid JSON object.
+  const prompt = `You are an AI algorithm debugger with expertise in detecting logical errors and bounds checking. Analyze the given code step-by-step and return ONLY a valid JSON object.
 
 CRITICAL: Return ONLY the JSON object. No explanations, no markdown, no code blocks.
 
-IMPORTANT LIMITATIONS:
+IMPORTANT REQUIREMENTS:
 - Generate maximum 10 steps (not 20!)
 - Keep each step description very brief
 - Focus on the most important steps only
 - Ensure valid JSON syntax with no trailing commas
+- ALWAYS check for index out of bounds conditions
+- Detect array/string access beyond valid indices
+- Check for division by zero, null pointer access
+- Validate loop conditions and termination
+- Identify potential infinite loops
+- Check for proper variable initialization
+
+SPECIFIC BUGS TO DETECT:
+- Loop conditions using <= instead of < (causes index out of bounds)
+- Array access with index equal to array length
+- Infinite loops due to incorrect termination conditions
+- Incorrect array slicing (e.g., arr[i+1:] instead of arr[i:])
+- Missing bounds checks before array access
 
 For the code below, create a step-by-step analysis with this exact JSON structure:
 
@@ -32,36 +47,63 @@ For the code below, create a step-by-step analysis with this exact JSON structur
       "variables": {
         "var1": "value1"
       },
-      "highlightedLines": [line_numbers]
+      "highlightedLines": [line_numbers],
+      "boundsCheck": {
+        "isValid": true/false,
+        "issue": "description of bounds issue if any",
+        "suggestion": "how to fix the bounds issue"
+      }
     }
   ]
 }
 
-Example for simple algorithm (MAX 5 STEPS):
+CRITICAL BOUNDS CHECKING LOGIC:
+- For arrays: Check if index >= 0 AND index < array.length
+- For strings: Check if index >= 0 AND index < string.length  
+- For loops: Verify loop conditions prevent infinite execution
+- For function calls: Check if parameters are within valid ranges
+- For mathematical operations: Check for division by zero, overflow
+- For merge sort specifically: Check while loop conditions and array access
+
+Example for merge sort bounds checking:
 {
-  "algorithmType": "bubble_sort",
-  "totalSteps": 3,
+  "algorithmType": "merge_sort",
+  "totalSteps": 4,
   "steps": [
     {
       "stepIndex": 0,
-      "stepType": "initialize",
-      "description": "Initialize variables",
-      "lineNumber": 1,
+      "stepType": "loop_condition",
+      "description": "Check while loop condition",
+      "lineNumber": 15,
       "variables": {
-        "arr": [5, 2, 8, 1]
+        "i": 0,
+        "j": 0,
+        "leftLength": 3,
+        "rightLength": 4
       },
-      "highlightedLines": [1]
+      "highlightedLines": [15],
+      "boundsCheck": {
+        "isValid": false,
+        "issue": "Loop condition 'i <= len(left)' allows i to reach len(left), causing index out of bounds when accessing left[i]",
+        "suggestion": "Change 'i <= len(left)' to 'i < len(left)' to prevent accessing beyond array bounds"
+      }
     },
     {
       "stepIndex": 1,
-      "stepType": "compare",
-      "description": "Compare first two elements",
-      "lineNumber": 4,
+      "stepType": "array_access",
+      "description": "Access left[i] when i equals array length",
+      "lineNumber": 16,
       "variables": {
-        "arr": [5, 2, 8, 1],
-        "i": 0
+        "i": 3,
+        "left": [1, 2, 3],
+        "leftLength": 3
       },
-      "highlightedLines": [4]
+      "highlightedLines": [16],
+      "boundsCheck": {
+        "isValid": false,
+        "issue": "Accessing left[3] when left has length 3 (indices 0,1,2) causes IndexError",
+        "suggestion": "Ensure i < len(left) before accessing left[i]"
+      }
     }
   ]
 }
@@ -70,6 +112,8 @@ Code to analyze:
 ${code}
 
 Language: ${language}
+
+IMPORTANT: Always include boundsCheck for each step. If no bounds issues exist, set isValid: true and issue/suggestion to null.
 
 Return ONLY the JSON object, nothing else. Keep it under 10 steps maximum.`;
 
@@ -95,152 +139,33 @@ Return ONLY the JSON object, nothing else. Keep it under 10 steps maximum.`;
     const data = await geminiRes.json();
     let content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    // Try to extract JSON from code block or text
-    let jsonText = content;
-    const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-    if (codeBlockMatch) {
-      jsonText = codeBlockMatch[1];
-    }
+    // Extract JSON using shared utility
+    let jsonText = extractJsonFromMarkdown(content);
     
-    // If no code block, try to extract the first {...} JSON object
-    const jsonMatch = jsonText.match(/{[\s\S]*}/);
-    if (jsonMatch) {
-      jsonText = jsonMatch[0];
-    }
+    // Truncate if too large
+    jsonText = truncateJsonIfNeeded(jsonText);
     
-    // Clean up the content more aggressively
-    jsonText = jsonText.trim();
-    jsonText = jsonText.replace(/\\n/g, '\n');
-    jsonText = jsonText.replace(/\\"/g, '"');
-    jsonText = jsonText.replace(/\\\\/g, '\\');
-    jsonText = jsonText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    
-    // Remove any trailing commas in arrays and objects
-    jsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
-    
-    // Handle common JSON formatting issues
-    jsonText = jsonText.replace(/([^"\\])\s*\n\s*([^"\\])/g, '$1 $2');
-    jsonText = jsonText.replace(/\s+/g, ' ');
-    
-    // If the JSON is too large, truncate it to prevent parsing issues
-    const MAX_JSON_SIZE = 10000; // 10KB limit
-    if (jsonText.length > MAX_JSON_SIZE) {
-      console.log(`JSON too large (${jsonText.length} chars), truncating...`);
-      // Find the last complete step and truncate there
-      const lastCompleteStep = jsonText.lastIndexOf('}, {');
-      if (lastCompleteStep > 0) {
-        jsonText = jsonText.substring(0, lastCompleteStep + 1) + ']';
-      } else {
-        // If we can't find a good truncation point, just take the first part
-        jsonText = jsonText.substring(0, MAX_JSON_SIZE);
-        // Try to close any open brackets
-        const openBraces = (jsonText.match(/\{/g) || []).length;
-        const closeBraces = (jsonText.match(/\}/g) || []).length;
-        const openBrackets = (jsonText.match(/\[/g) || []).length;
-        const closeBrackets = (jsonText.match(/\]/g) || []).length;
-        
-        for (let i = 0; i < openBraces - closeBraces; i++) {
-          jsonText += '}';
-        }
-        for (let i = 0; i < openBrackets - closeBrackets; i++) {
-          jsonText += ']';
-        }
-      }
-    }
-    
-    let debugSteps;
-    try {
-      debugSteps = JSON.parse(jsonText);
-    } catch (parseError) {
-      console.error('Failed to parse debug steps response:', parseError.message);
-      console.error('JSON text length:', jsonText.length);
-      console.error('JSON text preview:', jsonText.substring(0, 500));
-      console.error('JSON text end:', jsonText.substring(jsonText.length - 200));
-      
-      // Try to fix common JSON issues
-      try {
-        // Remove any text before the first {
-        const firstBrace = jsonText.indexOf('{');
-        if (firstBrace > 0) {
-          jsonText = jsonText.substring(firstBrace);
-        }
-        
-        // Remove any text after the last }
-        const lastBrace = jsonText.lastIndexOf('}');
-        if (lastBrace > 0 && lastBrace < jsonText.length - 1) {
-          jsonText = jsonText.substring(0, lastBrace + 1);
-        }
-        
-        // Additional cleaning for common issues
-        jsonText = jsonText.replace(/,\s*}/g, '}'); // Remove trailing commas in objects
-        jsonText = jsonText.replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
-        jsonText = jsonText.replace(/,\s*$/g, ''); // Remove trailing commas at end
-        
-        console.log('Cleaned JSON preview:', jsonText.substring(0, 300));
-        
-        // Try parsing again
-        debugSteps = JSON.parse(jsonText);
-        console.log('JSON parse successful after cleaning');
-      } catch (secondError) {
-        console.error('Second parse attempt failed:', secondError.message);
-        console.error('Error position:', secondError.message.match(/position (\d+)/)?.[1]);
-        
-        // Try to extract just the basic structure
-        try {
-          const algorithmMatch = jsonText.match(/"algorithmType":\s*"([^"]+)"/);
-          const stepsMatch = jsonText.match(/"steps":\s*\[/);
-          
-          if (algorithmMatch && stepsMatch) {
-            // Try to extract just the first few steps
-            const stepsStart = jsonText.indexOf('"steps": [');
-            const stepsEnd = jsonText.indexOf(']', stepsStart);
-            
-            if (stepsStart > 0 && stepsEnd > stepsStart) {
-              const stepsSection = jsonText.substring(stepsStart, stepsEnd + 1);
-              const cleanedSteps = stepsSection.replace(/,\s*$/g, '');
-              
-              debugSteps = {
-                algorithmType: algorithmMatch[1],
-                totalSteps: 1,
-                steps: [
-                  {
-                    stepIndex: 0,
-                    stepType: "execute",
-                    description: "Parsed from partial response",
-                    lineNumber: null,
-                    variables: {},
-                    highlightedLines: []
-                  }
-                ]
-              };
-              console.log('Created partial debug steps structure');
-            } else {
-              throw new Error('Could not extract steps section');
-            }
-          } else {
-            throw new Error('Could not extract basic structure');
+    // Parse JSON using robust parser
+    const fallbackData = {
+      algorithmType: "unknown",
+      totalSteps: 1,
+      steps: [
+        {
+          stepIndex: 0,
+          stepType: "execute",
+          description: "Code analysis completed. The algorithm is too complex for detailed step-by-step debugging. Try using a simpler algorithm or the regular 'Debug' feature for code analysis.",
+          variables: {},
+          highlightedLines: [],
+          boundsCheck: {
+            isValid: true,
+            issue: null,
+            suggestion: null
           }
-        } catch (extractError) {
-          console.error('Extraction failed:', extractError.message);
-          
-          // Last resort: create a basic debug steps structure
-          debugSteps = {
-            algorithmType: "unknown",
-            totalSteps: 1,
-            steps: [
-              {
-                stepIndex: 0,
-                stepType: "execute",
-                description: "Code analysis completed. The algorithm is too complex for detailed step-by-step debugging. Try using a simpler algorithm or the regular 'Debug' feature for code analysis.",
-                variables: {},
-                highlightedLines: []
-              }
-            ]
-          };
-          console.log('Created fallback debug steps structure');
         }
-      }
-    }
+      ]
+    };
+    
+    let debugSteps = parseJsonRobustly(jsonText, fallbackData);
 
     // Validate the structure
     if (!debugSteps || typeof debugSteps !== 'object') {
@@ -259,14 +184,19 @@ Return ONLY the JSON object, nothing else. Keep it under 10 steps maximum.`;
       debugSteps.totalSteps = MAX_STEPS;
     }
 
-    // Ensure all steps have required fields
+    // Ensure all steps have required fields including boundsCheck
     debugSteps.steps = debugSteps.steps.map((step, index) => ({
       stepIndex: index,
       stepType: step.stepType || 'execute',
       description: step.description || `Step ${index + 1}`,
       lineNumber: step.lineNumber || null,
       variables: step.variables || {},
-      highlightedLines: step.highlightedLines || []
+      highlightedLines: step.highlightedLines || [],
+      boundsCheck: step.boundsCheck || {
+        isValid: true,
+        issue: null,
+        suggestion: null
+      }
     }));
 
     return res.status(200).json(debugSteps);

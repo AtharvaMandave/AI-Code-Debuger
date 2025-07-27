@@ -8,122 +8,44 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No code provided' });
   }
 
-  const prompt = `You are an AI algorithm visualizer. Analyze the given code and detect the algorithm type, then generate visualization data with animation steps.
+  const prompt = `You are an AI algorithm visualizer. Analyze the given code and return ONLY a valid JSON object for visualization.
 
-CRITICAL: Return ONLY a valid JSON object. No explanations, no markdown, no code blocks.
+CRITICAL: Return ONLY the JSON object. No explanations, no markdown, no code blocks.
 
-IMPORTANT:
-- Detect algorithm type (bubble_sort, quick_sort, merge_sort, binary_search, linear_search, linked_list, binary_tree, dfs, bfs, etc.)
-- Generate COMPLETE animation steps for visualization - ensure the algorithm runs to completion
-- For sorting algorithms: continue until the array is fully sorted
-- For search algorithms: continue until the target is found or search is complete
-- For traversal algorithms: continue until all nodes are visited
-- Keep steps under 30 for performance (but ensure completeness)
-- Include sample data for visualization
-
-For the code below, create visualization data with this exact JSON structure:
+For the code below, create a visualization with this exact JSON structure:
 
 {
   "algorithmType": "algorithm_name",
-  "visualizationType": "sorting|linked_list|binary_tree|graph|search",
+  "visualizationType": "sorting/searching/graph/etc",
   "sampleData": [1, 2, 3, 4, 5],
   "animationSteps": [
     {
       "step": 0,
-      "action": "initialize|compare|swap|insert|traverse",
-      "description": "What is happening",
+      "action": "initialize",
+      "description": "Brief description",
       "data": {
         "array": [1, 2, 3, 4, 5],
-        "pointers": {"i": 0, "j": 1},
-        "highlighted": [0, 1]
-      },
-      "duration": 1000
-    }
-  ],
-  "config": {
-    "speed": 1000,
-    "autoPlay": true,
-    "showPointers": true,
-    "showComparisons": true
-  }
-}
-
-Example for COMPLETE bubble sort (showing full sorting process):
-{
-  "algorithmType": "bubble_sort",
-  "visualizationType": "sorting",
-  "sampleData": [64, 34, 25, 12, 22, 11, 90],
-  "animationSteps": [
-    {
-      "step": 0,
-      "action": "initialize",
-      "description": "Initialize array",
-      "data": {
-        "array": [64, 34, 25, 12, 22, 11, 90],
-        "pointers": {"i": 0, "j": 0},
+        "pointers": {},
         "highlighted": []
       },
-      "duration": 500
-    },
-    {
-      "step": 1,
-      "action": "compare",
-      "description": "Compare elements at positions 0 and 1",
-      "data": {
-        "array": [64, 34, 25, 12, 22, 11, 90],
-        "pointers": {"i": 0, "j": 0},
-        "highlighted": [0, 1]
-      },
-      "duration": 1000
-    },
-    {
-      "step": 2,
-      "action": "swap",
-      "description": "Swap elements at positions 0 and 1",
-      "data": {
-        "array": [34, 64, 25, 12, 22, 11, 90],
-        "pointers": {"i": 0, "j": 0},
-        "highlighted": [0, 1]
-      },
-      "duration": 1000
-    },
-    {
-      "step": 3,
-      "action": "compare",
-      "description": "Compare elements at positions 1 and 2",
-      "data": {
-        "array": [34, 64, 25, 12, 22, 11, 90],
-        "pointers": {"i": 0, "j": 1},
-        "highlighted": [1, 2]
-      },
-      "duration": 1000
-    },
-    {
-      "step": 4,
-      "action": "swap",
-      "description": "Swap elements at positions 1 and 2",
-      "data": {
-        "array": [34, 25, 64, 12, 22, 11, 90],
-        "pointers": {"i": 0, "j": 1},
-        "highlighted": [1, 2]
-      },
       "duration": 1000
     }
-    // ... continue until array is fully sorted: [11, 12, 22, 25, 34, 64, 90]
   ],
   "config": {
     "speed": 1000,
-    "autoPlay": true,
+    "autoPlay": false,
     "showPointers": true,
     "showComparisons": true
   }
 }
 
 CRITICAL REQUIREMENTS:
-- For sorting algorithms: Continue until the array is COMPLETELY sorted
-- For bubble sort: Show all passes until no more swaps are needed
-- For other algorithms: Show the complete execution until termination
-- Ensure the final step shows the sorted/complete result
+- Generate maximum 20 animation steps
+- Keep descriptions brief and clear
+- Include proper data structures for visualization
+- Ensure all array indices are within bounds
+- Check for potential infinite loops
+- Validate loop termination conditions
 
 Code to analyze:
 ${code}
@@ -167,7 +89,7 @@ Return ONLY the JSON object, nothing else. Ensure the algorithm runs to completi
       jsonText = jsonMatch[0];
     }
     
-    // Clean up the content
+    // Clean up the content more aggressively
     jsonText = jsonText.trim();
     jsonText = jsonText.replace(/\\n/g, '\n');
     jsonText = jsonText.replace(/\\"/g, '"');
@@ -177,37 +99,72 @@ Return ONLY the JSON object, nothing else. Ensure the algorithm runs to completi
     jsonText = jsonText.replace(/,\s*]/g, ']');
     jsonText = jsonText.replace(/,\s*$/g, '');
     
+    // Handle common JSON formatting issues
+    jsonText = jsonText.replace(/([^"\\])\s*\n\s*([^"\\])/g, '$1 $2');
+    jsonText = jsonText.replace(/\s+/g, ' ');
+    
     let visualizationData;
     try {
       visualizationData = JSON.parse(jsonText);
     } catch (parseError) {
       console.error('Failed to parse visualization data:', parseError.message);
+      console.error('JSON text length:', jsonText.length);
+      console.error('JSON text preview:', jsonText.substring(0, 500));
       
-      // Create fallback visualization data
-      visualizationData = {
-        algorithmType: "unknown",
-        visualizationType: "sorting",
-        sampleData: [1, 2, 3, 4, 5],
-        animationSteps: [
-          {
-            step: 0,
-            action: "initialize",
-            description: "Unable to parse visualization data. Please try with a simpler algorithm.",
-            data: {
-              array: [1, 2, 3, 4, 5],
-              pointers: {},
-              highlighted: []
-            },
-            duration: 1000
-          }
-        ],
-        config: {
-          speed: 1000,
-          autoPlay: false,
-          showPointers: true,
-          showComparisons: true
+      // Try to fix common JSON issues
+      try {
+        // Remove any text before the first {
+        const firstBrace = jsonText.indexOf('{');
+        if (firstBrace > 0) {
+          jsonText = jsonText.substring(firstBrace);
         }
-      };
+        
+        // Remove any text after the last }
+        const lastBrace = jsonText.lastIndexOf('}');
+        if (lastBrace > 0 && lastBrace < jsonText.length - 1) {
+          jsonText = jsonText.substring(0, lastBrace + 1);
+        }
+        
+        // Additional cleaning for common issues
+        jsonText = jsonText.replace(/,\s*}/g, '}'); // Remove trailing commas in objects
+        jsonText = jsonText.replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+        jsonText = jsonText.replace(/,\s*$/g, ''); // Remove trailing commas at end
+        
+        console.log('Cleaned JSON preview:', jsonText.substring(0, 300));
+        
+        // Try parsing again
+        visualizationData = JSON.parse(jsonText);
+        console.log('JSON parse successful after cleaning');
+      } catch (secondError) {
+        console.error('Second parse attempt failed:', secondError.message);
+        
+        // Create fallback visualization data
+        visualizationData = {
+          algorithmType: "unknown",
+          visualizationType: "sorting",
+          sampleData: [1, 2, 3, 4, 5],
+          animationSteps: [
+            {
+              step: 0,
+              action: "initialize",
+              description: "Unable to parse visualization data. Please try with a simpler algorithm.",
+              data: {
+                array: [1, 2, 3, 4, 5],
+                pointers: {},
+                highlighted: []
+              },
+              duration: 1000
+            }
+          ],
+          config: {
+            speed: 1000,
+            autoPlay: false,
+            showPointers: true,
+            showComparisons: true
+          }
+        };
+        console.log('Created fallback visualization data');
+      }
     }
 
     // Validate and limit steps

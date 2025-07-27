@@ -10,6 +10,7 @@ import { useUser, SignInButton } from '@clerk/nextjs';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import CodeStructureVisualizer from '../../components/CodeStructureVisualizer';
+import ComplexityAnalyzer from '../../components/ComplexityAnalyzer';
 
 export default function DebugPage() {
   const { dark, setDark } = useContext(ThemeContext);
@@ -49,6 +50,12 @@ export default function DebugPage() {
   const [algorithmLoading, setAlgorithmLoading] = useState(false);
   const [algorithmError, setAlgorithmError] = useState(null);
   const [showAlgorithmVisualizer, setShowAlgorithmVisualizer] = useState(false);
+
+  // Complexity Analyzer state
+  const [complexityAnalysis, setComplexityAnalysis] = useState(null);
+  const [complexityLoading, setComplexityLoading] = useState(false);
+  const [complexityError, setComplexityError] = useState(null);
+  const [showComplexity, setShowComplexity] = useState(false);
 
 
   if (!isSignedIn) {
@@ -288,6 +295,31 @@ export default function DebugPage() {
     }
   };
 
+  const handleComplexityAnalyze = async () => {
+    setComplexityLoading(true);
+    setComplexityError(null);
+    setComplexityAnalysis(null);
+    setShowComplexity(true);
+    try {
+      const res = await fetch('/api/complexity-analyzer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setComplexityError(err.error || 'Unknown error');
+        return;
+      }
+      const data = await res.json();
+      setComplexityAnalysis(data);
+    } catch (err) {
+      setComplexityError(err.message);
+    } finally {
+      setComplexityLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900 transition-colors pt-8">
       {/* Toast Notification */}
@@ -338,6 +370,24 @@ export default function DebugPage() {
               loading={loading}
               highlightLines={highlightedLines}
             />
+            {/* Complexity Analyzer Button */}
+            <button
+              type="button"
+              className="mt-2 px-4 py-2 rounded bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white font-semibold shadow hover:scale-105 transition-all duration-200 w-fit"
+              onClick={handleComplexityAnalyze}
+              disabled={complexityLoading || !code.trim()}
+            >
+              {complexityLoading ? 'Analyzing Complexity...' : showComplexity ? 'Re-analyze Complexity' : 'Complexity Analyzer'}
+            </button>
+            {/* Show ComplexityAnalyzer below the editor */}
+            {showComplexity && (
+              <ComplexityAnalyzer
+                analysis={complexityAnalysis}
+                loading={complexityLoading}
+                error={complexityError}
+                onClose={() => setShowComplexity(false)}
+              />
+            )}
             {visualizeError && <div className="text-red-500 font-semibold mt-2">{visualizeError}</div>}
             {instrumentedCode && (
               <div className="mt-4 p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100">

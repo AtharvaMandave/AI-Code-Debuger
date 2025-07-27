@@ -38,15 +38,27 @@ export default function CodeEditor({ value, language, onChange, onLanguageChange
   useEffect(() => {
     // Dynamically load Monaco
     if (!window.monaco) {
-      const loaderScript = document.createElement('script');
-      loaderScript.src = `${MONACO_SRC}/loader.js`;
-      loaderScript.onload = () => {
-        window.require.config({ paths: { vs: MONACO_SRC } });
-        window.require(['vs/editor/editor.main'], () => {
-          createEditor();
-        });
-      };
-      document.body.appendChild(loaderScript);
+      // Prevent duplicate loader injection
+      if (!document.getElementById('monaco-loader-script')) {
+        const loaderScript = document.createElement('script');
+        loaderScript.id = 'monaco-loader-script';
+        loaderScript.src = `${MONACO_SRC}/loader.js`;
+        loaderScript.onload = () => {
+          window.require.config({ paths: { vs: MONACO_SRC } });
+          window.require(['vs/editor/editor.main'], () => {
+            createEditor();
+          });
+        };
+        document.body.appendChild(loaderScript);
+      } else {
+        // Loader is already being loaded, wait for it to finish
+        const checkMonaco = setInterval(() => {
+          if (window.monaco) {
+            clearInterval(checkMonaco);
+            createEditor();
+          }
+        }, 100);
+      }
     } else {
       createEditor();
     }

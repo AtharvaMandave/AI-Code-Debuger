@@ -15,6 +15,7 @@ export default function Navbar() {
         <div className="flex items-center gap-6 text-base font-medium">
           <NavLink href="/" label="Home" />
           <NavLink href="/debug" label="Debug" />
+          <NavLink href="/challenge" label="Challenge Game" />
           <NavLink href="/history" label="History" />
           <NavLink href="/convert" label="Convert" />
          
