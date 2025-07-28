@@ -53,19 +53,34 @@ export default function ChallengePage() {
   // Fetch all challenges for navigation
   const fetchAllChallenges = async () => {
     try {
+      console.log('Fetching all challenges for language:', language);
       const res = await fetch(`/api/challenge/list?language=${language}`);
       const data = await res.json();
+      console.log('All challenges loaded:', data);
       setAllChallenges(data.challenges);
       setCurrentWeek(data.currentWeek);
-      console.log('All challenges loaded:', data);
+      
+      // If no challenges exist, show a message
+      if (data.totalChallenges === 0) {
+        console.log('No challenges found, suggesting to generate new ones');
+        setFeedback("No challenges found for this week. Click 'Generate New' to create challenges using AI.");
+      }
+      
+      // Set initialLoading to false after first load
+      console.log('Setting initialLoading to false');
+      setInitialLoading(false);
     } catch (e) {
       console.error('Error fetching all challenges:', e);
+      setFeedback("Error loading challenges. Please try again.");
+      console.log('Setting initialLoading to false due to error');
+      setInitialLoading(false);
     }
   };
 
   // Generate new challenges using Gemini
   const generateNewChallenges = async () => {
     setGeneratingChallenges(true);
+    setFeedback("Generating new challenges using AI... This may take a moment.");
     try {
       const res = await fetch("/api/challenge/generate", {
         method: "POST",
@@ -76,8 +91,10 @@ export default function ChallengePage() {
       console.log('Challenges generated:', data);
       await fetchAllChallenges();
       await fetchChallenge();
+      setFeedback("✅ New challenges generated successfully! Ready to play.");
     } catch (e) {
       console.error('Error generating challenges:', e);
+      setFeedback("❌ Failed to generate challenges. Please try again.");
     } finally {
       setGeneratingChallenges(false);
     }
@@ -181,20 +198,23 @@ export default function ChallengePage() {
     setActiveTab("description");
     try {
       const res = await fetch(`/api/challenge/random?mode=${selectedMode}&difficulty=${selectedDifficulty}&language=${selectedLanguage}`);
-      if (!res.ok) throw new Error("No challenge found");
+      if (!res.ok) {
+        throw new Error("No challenge found");
+      }
       const data = await res.json();
       console.log('Challenge fetched:', data);
       setChallenge(data);
       setCode(data.starterCode);
       setLanguage(data.language);
       setUserOutput("");
+      setInitialLoading(false);
     } catch (e) {
       console.error('Error fetching challenge:', e);
       setChallenge(null);
-      setFeedback("No challenge found for this mode/difficulty. Please try generating new challenges.");
+      setFeedback("No challenge found for this mode/difficulty. Please click 'Generate New' to create challenges using AI.");
+      setInitialLoading(false);
     } finally {
       setLoading(false);
-      setInitialLoading(false);
     }
   };
 
@@ -210,16 +230,29 @@ export default function ChallengePage() {
   useEffect(() => {
     fetchAllChallenges();
     fetchLeaderboard();
+    
+    // Fallback timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.log('Loading timeout reached, setting initialLoading to false');
+      setInitialLoading(false);
+    }, 10000); // 10 seconds timeout
+    
+    return () => clearTimeout(timeout);
     // eslint-disable-next-line
   }, []);
+
+  // Initial challenge fetch after initial loading is complete
+  useEffect(() => {
+    if (!initialLoading) {
+      fetchChallenge(mode, difficulty, language);
+    }
+  }, [initialLoading, mode, difficulty, language]);
 
   // Mode/difficulty/language change
   useEffect(() => {
     if (!initialLoading) {
-      fetchChallenge(mode, difficulty, language);
       fetchAllChallenges();
     }
-    // eslint-disable-next-line
   }, [mode, difficulty, language]);
 
   // Submit handler
@@ -290,10 +323,10 @@ export default function ChallengePage() {
   // Get difficulty color
   const getDifficultyColor = (diff) => {
     switch (diff) {
-      case "easy": return "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900";
-      case "medium": return "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900";
-      case "hard": return "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900";
-      default: return "text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900";
+      case "easy": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "medium": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "hard": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      default: return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
@@ -430,6 +463,13 @@ export default function ChallengePage() {
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Problem Description</h3>
                       <div className="text-gray-700 dark:text-gray-300 leading-relaxed">
                         {challenge.description}
+                        {challenge.mode === 'output-predictor' && challenge.starterCode && (
+                          <div className="mt-4">
+                            <div className="bg-gray-100 dark:bg-zinc-800 p-4 rounded-lg border">
+                              <pre className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{challenge.starterCode}</pre>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

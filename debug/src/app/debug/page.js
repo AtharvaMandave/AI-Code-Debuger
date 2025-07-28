@@ -382,10 +382,7 @@ export default function DebugPage() {
             {/* Show ComplexityAnalyzer below the editor */}
             {showComplexity && (
               <ComplexityAnalyzer
-                analysis={complexityAnalysis}
-                loading={complexityLoading}
-                error={complexityError}
-                onClose={() => setShowComplexity(false)}
+                complexityData={complexityAnalysis}
               />
             )}
             {visualizeError && <div className="text-red-500 font-semibold mt-2">{visualizeError}</div>}

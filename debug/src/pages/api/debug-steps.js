@@ -15,9 +15,9 @@ export default async function handler(req, res) {
 CRITICAL: Return ONLY the JSON object. No explanations, no markdown, no code blocks.
 
 IMPORTANT REQUIREMENTS:
-- Generate maximum 10 steps (not 20!)
-- Keep each step description very brief
-- Focus on the most important steps only
+- Generate up to 50 steps (not just 10 or 30)
+- Cover every significant step, loop iteration, variable update, and key operation
+- Do not skip steps. Cover every step of the algorithm.
 - Ensure valid JSON syntax with no trailing commas
 - ALWAYS check for index out of bounds conditions
 - Detect array/string access beyond valid indices
@@ -115,7 +115,7 @@ Language: ${language}
 
 IMPORTANT: Always include boundsCheck for each step. If no bounds issues exist, set isValid: true and issue/suggestion to null.
 
-Return ONLY the JSON object, nothing else. Keep it under 10 steps maximum.`;
+Return ONLY the JSON object, nothing else. You may return up to 50 steps maximum.`;
 
   try {
     const geminiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + process.env.GEMINI_API_KEY, {
@@ -138,50 +138,107 @@ Return ONLY the JSON object, nothing else. Keep it under 10 steps maximum.`;
 
     const data = await geminiRes.json();
     let content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
+    console.log('Raw Gemini response length:', content.length);
+    console.log('Raw Gemini response preview:', content.substring(0, 500));
+
     // Extract JSON using shared utility
     let jsonText = extractJsonFromMarkdown(content);
-    
-    // Truncate if too large
-    jsonText = truncateJsonIfNeeded(jsonText);
-    
-    // Parse JSON using robust parser
-    const fallbackData = {
-      algorithmType: "unknown",
-      totalSteps: 1,
-      steps: [
-        {
-          stepIndex: 0,
-          stepType: "execute",
-          description: "Code analysis completed. The algorithm is too complex for detailed step-by-step debugging. Try using a simpler algorithm or the regular 'Debug' feature for code analysis.",
-          variables: {},
-          highlightedLines: [],
-          boundsCheck: {
-            isValid: true,
-            issue: null,
-            suggestion: null
-          }
-        }
-      ]
-    };
-    
-    let debugSteps = parseJsonRobustly(jsonText, fallbackData);
+    console.log('Extracted JSON text length:', jsonText.length);
+    console.log('Extracted JSON preview:', jsonText.substring(0, 500));
 
-    // Validate the structure
-    if (!debugSteps || typeof debugSteps !== 'object') {
-      throw new Error('Invalid debug steps structure');
+    // Truncate if too large
+    jsonText = truncateJsonIfNeeded(jsonText, 60000); // allow larger JSON
+    console.log('Truncated JSON text length:', jsonText.length);
+
+    // Try robust parsing
+    let debugSteps = parseJsonRobustly(jsonText, null);
+
+    // If robust parsing fails, try aggressive cleaning
+    if (!debugSteps) {
+      try {
+        let cleaned = jsonText
+          .replace(/,\s*([}\]])/g, '$1') // remove trailing commas
+          .replace(/\s+\}/g, '}')
+          .replace(/\s+\]/g, ']')
+          .replace(/\n/g, '\n')
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+          .replace(/\"/g, '"')
+          .replace(/\\\\/g, '\\');
+        debugSteps = JSON.parse(cleaned);
+        console.log('Aggressive cleaning parse successful');
+      } catch (e) {
+        console.error('Aggressive cleaning parse failed:', e.message);
+      }
     }
-    
-    if (!Array.isArray(debugSteps.steps)) {
-      debugSteps.steps = [];
+
+    // If still no result, try manual extraction of steps array
+    if (!debugSteps) {
+      try {
+        const stepsMatch = jsonText.match(/"steps"\s*:\s*\[(.*)\][^\]]*$/s);
+        if (stepsMatch) {
+          const stepsArrayText = stepsMatch[1];
+          const stepRegex = /\{[^\{\}]*\}/g;
+          const steps = [];
+          let match;
+          while ((match = stepRegex.exec(stepsArrayText)) !== null) {
+            try {
+              const step = JSON.parse(match[0]
+                .replace(/,\s*([}\]])/g, '$1')
+                .replace(/\s+\}/g, '}')
+                .replace(/\s+\]/g, ']')
+                .replace(/\n/g, '\n')
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+                .replace(/\"/g, '"')
+                .replace(/\\\\/g, '\\')
+              );
+              steps.push(step);
+            } catch (e) {
+              console.error('Manual step parse failed:', e.message);
+            }
+          }
+          debugSteps = {
+            algorithmType: 'unknown',
+            totalSteps: steps.length,
+            steps
+          };
+          console.log('Manual extraction successful, steps:', steps.length);
+        }
+      } catch (e) {
+        console.error('Manual extraction failed:', e.message);
+      }
+    }
+
+    // Fallback if still nothing
+    if (!debugSteps || !Array.isArray(debugSteps.steps) || debugSteps.steps.length === 0) {
+      debugSteps = {
+        algorithmType: "unknown",
+        totalSteps: 1,
+        steps: [
+          {
+            stepIndex: 0,
+            stepType: "execute",
+            description: "Code analysis completed. The algorithm is too complex for detailed step-by-step debugging. Try using a simpler algorithm or the regular 'Debug' feature for code analysis.",
+            variables: {},
+            highlightedLines: [],
+            boundsCheck: {
+              isValid: true,
+              issue: null,
+              suggestion: null
+            }
+          }
+        ]
+      };
+      console.log('Fallback: returning single generic step');
     }
 
     // Limit the number of steps to prevent UI issues
-    const MAX_STEPS = 10;
+    const MAX_STEPS = 50;
     if (debugSteps.steps.length > MAX_STEPS) {
       console.log(`Too many steps (${debugSteps.steps.length}), limiting to ${MAX_STEPS}`);
       debugSteps.steps = debugSteps.steps.slice(0, MAX_STEPS);
       debugSteps.totalSteps = MAX_STEPS;
+    } else {
+      debugSteps.totalSteps = debugSteps.steps.length;
     }
 
     // Ensure all steps have required fields including boundsCheck

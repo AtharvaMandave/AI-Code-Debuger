@@ -38,14 +38,17 @@ Requirements:
 2. Include a clear title, description, and starter code
 3. Provide the correct solution
 4. For fix-bug: Include a subtle but realistic bug
-5. For output-predictor: Create code that produces a specific output
+5. For output-predictor: Create code that produces a specific output - INCLUDE THE CODE IN THE DESCRIPTION
 6. For refactor-rush: Create inefficient code that can be optimized
 7. Make it appropriate for ${difficulty} difficulty level
+
+IMPORTANT: For output-predictor mode, the description MUST include the actual code snippet that users need to analyze. The description should be something like:
+"What will be the output of the following code? [CODE SNIPPET HERE]"
 
 Respond with a JSON object in this exact format:
 {
   "title": "Challenge Title",
-  "description": "Clear problem description",
+  "description": "Clear problem description WITH CODE SNIPPET if output-predictor",
   "starterCode": "Code with bug/inefficiency or code to analyze",
   "solution": "Correct solution or expected output",
   "mode": "${challengeType.mode}",
@@ -110,9 +113,13 @@ Only return the JSON object, nothing else.`;
         } catch (parseError) {
           console.error('Failed to parse challenge:', parseError);
           // Create a fallback challenge
+          const fallbackDescription = challengeType.mode === 'output-predictor' 
+            ? `What will be the output of the following ${language} code?\n\n${getFallbackCode(challengeType.mode, difficulty, language)}`
+            : `A ${difficulty} level ${challengeType.mode.replace('-', ' ')} challenge in ${language}.`;
+            
           const fallbackChallenge = await Challenge.create({
             title: `${challengeType.mode.replace('-', ' ').toUpperCase()} - ${difficulty}`,
-            description: `A ${difficulty} level ${challengeType.mode.replace('-', ' ')} challenge in ${language}.`,
+            description: fallbackDescription,
             starterCode: getFallbackCode(challengeType.mode, difficulty, language),
             solution: getFallbackSolution(challengeType.mode, difficulty, language),
             mode: challengeType.mode,
