@@ -6,15 +6,41 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  await dbConnect();
+  
+  try {
+    await dbConnect();
+  } catch (error) {
+    console.error('Database connection error:', error);
+    return res.status(500).json({ error: 'Database connection failed' });
+  }
+  
   const { userId, challengeId, userCode, userOutput, mode } = req.body;
+  
+  // Input validation
   if (!userId || !challengeId) {
     return res.status(400).json({ error: 'Missing userId or challengeId' });
   }
-  const challenge = await Challenge.findById(challengeId);
+  
+  if (!userCode && mode !== 'output-predictor') {
+    return res.status(400).json({ error: 'Missing userCode for non-output-predictor challenges' });
+  }
+  
+  if (!userOutput && mode === 'output-predictor') {
+    return res.status(400).json({ error: 'Missing userOutput for output-predictor challenges' });
+  }
+  
+  let challenge;
+  try {
+    challenge = await Challenge.findById(challengeId);
+  } catch (error) {
+    console.error('Challenge lookup error:', error);
+    return res.status(500).json({ error: 'Failed to retrieve challenge' });
+  }
+  
   if (!challenge) {
     return res.status(404).json({ error: 'Challenge not found' });
   }
+  
   let correct = false;
   let feedback = '';
   let xpEarned = 0;
@@ -30,7 +56,7 @@ export default async function handler(req, res) {
       `Expected: "${challenge.solution}"\nYour answer: "${userOutput}"` :
       `Expected: "${challenge.solution}"\nYour answer: "${userOutput}"`;
     xpEarned = correct ? 15 : 0;
-  } else {
+  } else if (challenge.mode === 'fix-bug' || challenge.mode === 'refactor-rush') {
     // Use Gemini to check fix/refactor
     const prompt = `You are a code challenge judge. Given the original buggy/inefficient code and the user's submission, determine if the user's code correctly fixes the bug or improves the code as required.
 
@@ -55,6 +81,7 @@ Evaluate the user's code and respond with a JSON object:
 }
 
 Return ONLY the JSON object, nothing else.`;
+    
     try {
       const geminiRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + process.env.GEMINI_API_KEY, {
         method: 'POST',
@@ -65,6 +92,11 @@ Return ONLY the JSON object, nothing else.`;
           ]
         }),
       });
+      
+      if (!geminiRes.ok) {
+        throw new Error(`Gemini API error: ${geminiRes.status}`);
+      }
+      
       const data = await geminiRes.json();
       let content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       let jsonText = content;
@@ -92,24 +124,55 @@ Return ONLY the JSON object, nothing else.`;
       let judge = { correct: false, feedback: 'Unable to parse Gemini response.', detailedFeedback: 'Please try again.', score: 0 };
       try {
         judge = JSON.parse(jsonText);
-      } catch (e) {
-        console.error('JSON parse error:', e);
+        
+        // Validate judge response structure
+        if (typeof judge.correct !== 'boolean') {
+          judge.correct = false;
+        }
+        if (typeof judge.feedback !== 'string') {
+          judge.feedback = 'Invalid response format';
+        }
+        if (typeof judge.detailedFeedback !== 'string') {
+          judge.detailedFeedback = 'No detailed feedback available';
+        }
+        if (typeof judge.score !== 'number' || judge.score < 0 || judge.score > 10) {
+          judge.score = 0;
+        }
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        judge = { 
+          correct: false, 
+          feedback: 'Unable to parse AI response. Please try again.', 
+          detailedFeedback: 'The AI response was malformed. Please submit your solution again.', 
+          score: 0 
+        };
       }
       
       correct = !!judge.correct;
       feedback = judge.feedback || (correct ? '🎉 Correct! Well done!' : '❌ Incorrect. Try again!');
       detailedFeedback = judge.detailedFeedback || 'No detailed feedback available.';
       xpEarned = correct ? (judge.score || 15) : 0;
-    } catch (e) {
-      console.error('Gemini API error:', e);
-      return res.status(500).json({ error: 'Gemini API error', details: e.message });
+    } catch (apiError) {
+      console.error('Gemini API error:', apiError);
+      return res.status(500).json({ 
+        error: 'AI evaluation service unavailable', 
+        details: 'Please try again later or contact support if the problem persists.' 
+      });
     }
+  } else {
+    return res.status(400).json({ error: 'Invalid challenge mode' });
   }
 
   // Update user stats
-  let stats = await UserGameStats.findOne({ userId });
-  if (!stats) {
-    stats = await UserGameStats.create({ userId });
+  let stats;
+  try {
+    stats = await UserGameStats.findOne({ userId });
+    if (!stats) {
+      stats = await UserGameStats.create({ userId });
+    }
+  } catch (dbError) {
+    console.error('User stats error:', dbError);
+    return res.status(500).json({ error: 'Failed to update user statistics' });
   }
   
   stats.attempts += 1;
@@ -128,7 +191,13 @@ Return ONLY the JSON object, nothing else.`;
   }
   
   stats.lastPlayed = new Date();
-  await stats.save();
+  
+  try {
+    await stats.save();
+  } catch (saveError) {
+    console.error('Stats save error:', saveError);
+    return res.status(500).json({ error: 'Failed to save user statistics' });
+  }
 
   return res.status(200).json({ 
     correct, 

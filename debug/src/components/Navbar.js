@@ -1,13 +1,12 @@
 "use client";
 import Link from 'next/link';
-import { useContext } from 'react';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
-import { ThemeContext } from './ClientLayout';
+import { useTheme } from './ThemeContext';
 
 export default function Navbar() {
-  const { dark, setDark } = useContext(ThemeContext);
+  const { dark, setDark } = useTheme();
   return (
-    <nav className="w-full sticky top-0 z-40 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+    <nav className="w-full sticky top-0 z-40 bg-white dark:bg-zinc-900">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-8 py-3 h-16">
         {/* Title */}
         <span className="text-2xl font-extrabold text-zinc-900 dark:text-white">AI Debugger</span>
@@ -23,12 +22,14 @@ export default function Navbar() {
         {/* User Actions */}
         <div className="flex items-center gap-3">
           <button
-            className="rounded px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            className="rounded-lg px-3 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:scale-105 hover:bg-zinc-200 dark:hover:bg-zinc-700"
             onClick={() => setDark((d) => !d)}
             aria-label="Toggle dark mode"
             title="Toggle dark mode"
           >
-            {dark ? "🌙" : "☀️"}
+            <span className="text-lg transition-transform duration-200">
+              {dark ? "🌙" : "☀️"}
+            </span>
           </button>
           <SignedOut>
             <SignInButton>

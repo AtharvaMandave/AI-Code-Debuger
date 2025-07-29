@@ -1,8 +1,7 @@
 'use client'
 import Image from "next/image";
 import Link from 'next/link';
-import { useContext } from 'react';
-import { ThemeContext } from '../components/ClientLayout';
+import { useTheme } from '../components/ThemeContext';
 
 const features = [
   {
@@ -28,7 +27,7 @@ const features = [
 ];
 
 export default function LandingPage() {
-  const { dark, setDark } = useContext(ThemeContext);
+  const { dark, setDark } = useTheme();
   return (
     <div className="min-h-[80vh] bg-gradient-to-br from-blue-50 via-white to-zinc-100 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900 transition-colors">
       {/* Hero Section */}
@@ -64,7 +63,7 @@ export default function LandingPage() {
       <div className="flex justify-center w-full mt-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl w-full">
           {features.map((f, i) => (
-            <div key={i} className="bg-white/80 dark:bg-zinc-800/80 rounded-xl shadow p-6 flex flex-col items-center text-center border border-zinc-100 dark:border-zinc-800">
+            <div key={i} className="bg-white/80 text-white dark:bg-zinc-800/80 rounded-xl shadow p-6 flex flex-col items-center text-center border border-zinc-100 dark:border-zinc-800">
               <div className="text-4xl mb-2">{f.icon}</div>
               <div className="font-bold text-lg mb-1">{f.title}</div>
               <div className="text-zinc-600 dark:text-zinc-300 text-sm">{f.desc}</div>

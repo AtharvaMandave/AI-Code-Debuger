@@ -210,36 +210,58 @@ function extractBasicStructure(jsonText) {
 }
 
 // Truncate JSON if it's too large
-function truncateJsonIfNeeded(jsonText, maxSize = 10000) {
+function truncateJsonIfNeeded(jsonText, maxSize = 8000) {
   if (jsonText.length <= maxSize) {
     return jsonText;
   }
 
   console.log(`JSON too large (${jsonText.length} chars), truncating...`);
   
-  // Find the last complete step and truncate there
-  const lastCompleteStep = jsonText.lastIndexOf('}, {');
-  if (lastCompleteStep > 0) {
-    return jsonText.substring(0, lastCompleteStep + 1) + ']';
-  } else {
-    // If we can't find a good truncation point, just take the first part
-    let truncated = jsonText.substring(0, maxSize);
-    
-    // Try to close any open brackets
-    const openBraces = (truncated.match(/\{/g) || []).length;
-    const closeBraces = (truncated.match(/\}/g) || []).length;
-    const openBrackets = (truncated.match(/\[/g) || []).length;
-    const closeBrackets = (truncated.match(/\]/g) || []).length;
-    
-    for (let i = 0; i < openBraces - closeBraces; i++) {
-      truncated += '}';
+  // First, try to find a complete timeline array
+  const timelineStart = jsonText.indexOf('"timeline":');
+  if (timelineStart > 0) {
+    const arrayStart = jsonText.indexOf('[', timelineStart);
+    if (arrayStart > 0) {
+      // Find the last complete step object
+      const stepPattern = /},\s*{/g;
+      let lastMatch = null;
+      let match;
+      
+      while ((match = stepPattern.exec(jsonText)) !== null) {
+        if (match.index < maxSize) {
+          lastMatch = match;
+        } else {
+          break;
+        }
+      }
+      
+      if (lastMatch) {
+        const truncated = jsonText.substring(0, lastMatch.index + 1) + ']';
+        console.log('Truncated at complete step, length:', truncated.length);
+        return truncated;
+      }
     }
-    for (let i = 0; i < openBrackets - closeBrackets; i++) {
-      truncated += ']';
-    }
-    
-    return truncated;
   }
+  
+  // If we can't find a good truncation point, try to close the JSON properly
+  let truncated = jsonText.substring(0, maxSize);
+  
+  // Count brackets and braces to close them properly
+  const openBraces = (truncated.match(/\{/g) || []).length;
+  const closeBraces = (truncated.match(/\}/g) || []).length;
+  const openBrackets = (truncated.match(/\[/g) || []).length;
+  const closeBrackets = (truncated.match(/\]/g) || []).length;
+  
+  // Close any open brackets/braces
+  for (let i = 0; i < openBrackets - closeBrackets; i++) {
+    truncated += ']';
+  }
+  for (let i = 0; i < openBraces - closeBraces; i++) {
+    truncated += '}';
+  }
+  
+  console.log('Truncated with bracket closure, length:', truncated.length);
+  return truncated;
 }
 
 module.exports = {

@@ -93,7 +93,7 @@ export default function ConvertPage() {
         <form className="mb-0">
           <div className="flex gap-4 mb-4">
             <div className="flex-1">
-              <label className="block font-semibold mb-1 text-white">Source Language</label>
+              <label className="block font-semibold mb-1 text-zinc-900 dark:text-white">Source Language</label>
               <select value={sourceLang} onChange={e => setSourceLang(e.target.value)} className="w-full p-2 rounded border dark:bg-zinc-900 dark:text-zinc-100">
                 {LANGUAGES.map(lang => (
                   <option key={lang.value} value={lang.value}>{lang.label}</option>
@@ -101,7 +101,7 @@ export default function ConvertPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="block font-semibold mb-1 text-white">Target Language</label>
+              <label className="block font-semibold mb-1 text-zinc-900 dark:text-white">Target Language</label>
               <select value={targetLang} onChange={e => setTargetLang(e.target.value)} className="w-full p-2 rounded border dark:bg-zinc-900 dark:text-zinc-100">
                 {LANGUAGES.map(lang => (
                   <option key={lang.value} value={lang.value}>{lang.label}</option>
@@ -114,7 +114,7 @@ export default function ConvertPage() {
         <div className="flex flex-col md:flex-row gap-6 mt-4 items-stretch">
           {/* Left: Source Code Editor */}
           <div className="flex-1 min-w-0 flex flex-col">
-            <label className="block font-semibold mb-1 text-white dark:text-zinc-100">Source Code</label>
+            <label className="block font-semibold mb-1 text-zinc-900 dark:text-white">Source Code</label>
             <div className="flex-1 flex flex-col bg-zinc-900 dark:bg-zinc-900 rounded-lg p-0 min-h-[400px] max-h-[600px]">
               <CodeEditor
                 value={sourceCode}
@@ -126,7 +126,7 @@ export default function ConvertPage() {
           </div>
           {/* Right: Translated Code Output */}
           <div className="flex-1 min-w-0 flex flex-col">
-            <label className="block font-semibold mb-1 text-white dark:text-zinc-100">Translated Code</label>
+            <label className="block font-semibold mb-1 text-zinc-900 dark:text-white">Translated Code</label>
             <div className="flex-1 bg-zinc-900 dark:bg-zinc-900 rounded-lg p-0 min-h-[400px] max-h-[600px] flex flex-col justify-start relative">
               {loading ? (
                 <div className="text-blue-500 font-semibold animate-pulse p-4">Translating...</div>

@@ -5,7 +5,7 @@ import Explanation from '../../components/Explanation';
 import StepDebugger from '../../components/StepDebugger';
 import AlgorithmVisualizer from '../../components/AlgorithmVisualizer';
 import Link from 'next/link';
-import { ThemeContext } from '../../components/ClientLayout';
+import { useTheme } from '../../components/ThemeContext';
 import { useUser, SignInButton } from '@clerk/nextjs';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -13,7 +13,7 @@ import CodeStructureVisualizer from '../../components/CodeStructureVisualizer';
 import ComplexityAnalyzer from '../../components/ComplexityAnalyzer';
 
 export default function DebugPage() {
-  const { dark, setDark } = useContext(ThemeContext);
+  const { dark, setDark } = useTheme();
   const { isSignedIn } = useUser();
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('javascript');
@@ -130,12 +130,18 @@ export default function DebugPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setResourceError(err.error || 'Unknown error');
+        if (err.error === 'Gemini API key not configured') {
+          setResourceError('API key not configured. Please set up your Gemini API key to use this feature.');
+        } else {
+          setResourceError(err.error || 'Unknown error');
+        }
         return;
       }
       const data = await res.json();
+      console.log('Resource suggestions received:', data);
       setResourceSuggestions(data);
     } catch (err) {
+      console.error('Error fetching resources:', err);
       setResourceError(err.message);
     } finally {
       setResourceLoading(false);
@@ -321,23 +327,23 @@ export default function DebugPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-900 transition-colors pt-8">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-100 via-zinc-200 to-zinc-300 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900 transition-colors">
       {/* Toast Notification */}
       {toast.message && (
-        <div className={`fixed top-6 right-6 z-[9999] px-6 py-3 rounded-lg shadow-lg text-white font-semibold transition-all duration-300 animate-fade-in ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}
+        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-lg text-white font-semibold transition-all duration-300 animate-fade-in flex items-center gap-3 ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}
           onClick={() => setToast({ message: '', type: 'success' })}
           role="alert"
           style={{ cursor: 'pointer' }}
         >
+          {toast.type === 'error' ? '🐛' : '💡'}
           {toast.message}
         </div>
       )}
-      {/* <h1 className="text-3xl font-bold mb-4 text-center mt-2">AI Debugger</h1> */}
-      <div className="flex flex-col md:flex-row gap-8 max-w-6xl mx-auto px-4 md:px-8 mt-6">
+      <main className="flex flex-col md:flex-row gap-4 max-w-7xl mx-auto px-4 md:px-8 ">
         {/* Left: Code Editor and Controls */}
-        <div className="md:w-1/2 w-full flex flex-col">
-          <form onSubmit={handleAnalyze} className="flex-1 flex flex-col gap-4 mb-4">
-            <div className="flex flex-col md:flex-row gap-2 items-start md:items-center mb-2">
+        <section className="md:w-1/2 w-full flex flex-col">
+          <form onSubmit={handleAnalyze} className="flex-1 flex flex-col gap-2 mb-2">
+            <div className="flex flex-col md:flex-row gap-2 items-start md:items-center mb-1">
               <label className="font-semibold text-zinc-700 dark:text-zinc-200 mr-2">Complexity Level:</label>
               <select
                 value={complexity}
@@ -387,7 +393,7 @@ export default function DebugPage() {
             )}
             {visualizeError && <div className="text-red-500 font-semibold mt-2">{visualizeError}</div>}
             {instrumentedCode && (
-              <div className="mt-4 p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100">
+              <div className="mt-4 p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white">
                 <div className="font-bold text-lg mb-2">🧩 Instrumented Code (JavaScript with Tracer API)</div>
                 <pre className="bg-zinc-900 text-white rounded p-3 mb-3 text-sm overflow-x-auto border border-zinc-700">
                   {instrumentedCode}
@@ -395,86 +401,61 @@ export default function DebugPage() {
                 <div className="mb-2 text-xs text-zinc-500">Copy and run this code in <a href="https://algorithm-visualizer.org/" target="_blank" rel="noopener noreferrer" className="underline text-blue-600 dark:text-blue-400">Algorithm Visualizer</a> or integrate tracers.js in your app for live visualization.</div>
               </div>
             )}
-            {resourceError && <div className="text-red-500 font-semibold mt-2">{resourceError}</div>}
-            {resourceSuggestions && (
-              <div className="mt-4 p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100">
-                <div className="font-bold text-lg mb-2">🔗 Resource Suggestions</div>
-                <div className="mb-2">
-                  <span className="font-semibold">▶️ YouTube Suggestions:</span>
-                  <ol className="list-decimal ml-6 mt-1">
-                    {resourceSuggestions.youtube.map((yt, i) => (
-                      <li key={i} className="mb-1">
-                        <a href={yt.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800">{yt.title}</a>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-                <div>
-                  <span className="font-semibold">📘 Documentation & Help Links:</span>
-                  <ul className="list-disc ml-6 mt-1">
-                    {resourceSuggestions.docs.map((doc, i) => (
-                      <li key={i} className="mb-1">
-                        <a href={doc} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800">{doc}</a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
+
             {debugError && <div className="text-red-500 font-semibold mt-2">{debugError}</div>}
             {algorithmError && <div className="text-red-500 font-semibold mt-2">{algorithmError}</div>}
           </form>
           {error && <div className="text-red-500 font-semibold mb-4">{error}</div>}
 
-        </div>
+        </section>
         {/* Right: Tabbed Panel */}
-        <div className="md:w-1/2 w-full flex flex-col items-center mt-4">
+        <aside className="md:w-1/2 w-full flex flex-col items-center mt-2">
           {/* Tab bar at the top of the right panel */}
-          <div className="flex gap-2 mb-6">
+          <nav className="flex gap-2 mb-4 bg-zinc-200 dark:bg-zinc-800 rounded-full px-2 py-1 shadow-inner">
             <button
-              className={`px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base ${rightTab === 'debug' ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white scale-105' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${rightTab === 'debug' ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
               onClick={() => setRightTab('debug')}
               disabled={rightTab === 'debug'}
+              aria-selected={rightTab === 'debug'}
+              aria-label="AI Explanation Tab"
             >
-              Debug
+              🤖 Debug
             </button>
-            {/* <button
-              type="button"
-              className={`px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base ${rightTab === 'visualize' ? 'bg-gradient-to-r from-green-500 via-blue-400 to-purple-500 text-white scale-105' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
-              onClick={handleVisualize}
-              disabled={visualizeLoading || !code.trim()}
-            >
-              {visualizeLoading ? 'Visualizing...' : 'Visualize'}
-            </button> */}
-
             <button
               type="button"
-              className={`px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base ${showStepDebugger ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white scale-105' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${showStepDebugger ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
               onClick={handleStepDebugToggle}
               disabled={debugLoading || !code.trim()}
+              aria-selected={showStepDebugger}
+              aria-label="Step Debugger Tab"
             >
-              {debugLoading ? 'Debugging...' : showStepDebugger ? 'Close' : 'Step Debugger'}
+              📋 {debugLoading ? 'Debugging...' : showStepDebugger ? 'Close' : 'Step Debugger'}
             </button>
-
             <button
               type="button"
-              className={`px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base ${showAlgorithmVisualizer ? 'bg-gradient-to-r from-purple-500 via-blue-400 to-green-500 text-white scale-105' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${showAlgorithmVisualizer ? 'bg-gradient-to-r from-purple-500 via-blue-400 to-green-500 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
               onClick={handleAlgorithmVisualizerToggle}
               disabled={algorithmLoading || !code.trim()}
+              aria-selected={showAlgorithmVisualizer}
+              aria-label="Algorithm Visualizer Tab"
             >
-              {algorithmLoading ? 'Visualizing...' : showAlgorithmVisualizer ? 'Close Algorithm Visualizer' : 'Algorithm Visualizer'}
+              🌳 {algorithmLoading ? 'Visualizing...' : showAlgorithmVisualizer ? 'Close' : 'Algorithm Visualizer'}
             </button>
-
             <button
               type="button"
-              className={`px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base ${rightTab === 'resources' ? 'bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-white scale-105' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
-              onClick={handleSuggestResources}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${rightTab === 'resources' ? 'bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
+              onClick={() => {
+                console.log('Resources button clicked');
+                setRightTab('resources');
+                handleSuggestResources();
+              }}
               disabled={resourceLoading || !code.trim()}
+              aria-selected={rightTab === 'resources'}
+              aria-label="Suggested Resources Tab"
             >
-              Suggested Resources
+              📚 Resources
             </button>
-          </div>
-          
+          </nav>
           {/* Tab content - only show when Step Debugger and Algorithm Visualizer are NOT active */}
           {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'debug' && <Explanation aiResponse={aiResponse} />}
           {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'visualize' && visualStructures && (
@@ -505,29 +486,128 @@ export default function DebugPage() {
             </>
           )}
 
-          {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'resources' && resourceSuggestions && (
-            <div className="mt-4 p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100">
-              <div className="font-bold text-lg mb-2">🔗 Resource Suggestions</div>
-              <div className="mb-2">
-                <span className="font-semibold">▶️ YouTube Suggestions:</span>
-                <ol className="list-decimal ml-6 mt-1">
-                  {resourceSuggestions.youtube.map((yt, i) => (
-                    <li key={i} className="mb-1">
-                      <a href={yt.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800">{yt.title}</a>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-              <div>
-                <span className="font-semibold">📘 Documentation & Help Links:</span>
-                <ul className="list-disc ml-6 mt-1">
-                  {resourceSuggestions.docs.map((doc, i) => (
-                    <li key={i} className="mb-1">
-                      <a href={doc} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800">{doc}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'resources' && (
+            <div className="w-full">
+              {resourceLoading ? (
+                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white">
+                      📚
+                    </div>
+                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="animate-pulse">
+                      <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/3 mb-2"></div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
+                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-5/6"></div>
+                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-4/6"></div>
+                      </div>
+                    </div>
+                    <div className="animate-pulse">
+                      <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4 mb-2"></div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
+                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : resourceSuggestions ? (
+                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white">
+                      📚
+                    </div>
+                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
+                  </div>
+                  
+                  {/* YouTube Suggestions */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-600 text-white">
+                        <span className="text-lg">▶️</span>
+                      </div>
+                      <h3 className="font-semibold">YouTube Suggestions</h3>
+                    </div>
+                    <div className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                      {resourceSuggestions.youtube && resourceSuggestions.youtube.length > 0 ? (
+                        <ol className="list-decimal ml-6 space-y-2">
+                          {resourceSuggestions.youtube.map((yt, i) => (
+                            <li key={i} className="text-sm">
+                              <a 
+                                href={yt.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 transition-colors"
+                              >
+                                {yt.title}
+                              </a>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm">No YouTube suggestions available.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Documentation & Help Links */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                        <span className="text-lg">📘</span>
+                      </div>
+                      <h3 className="font-semibold">Documentation & Help Links</h3>
+                    </div>
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                      {resourceSuggestions.docs && resourceSuggestions.docs.length > 0 ? (
+                        <ul className="list-disc ml-6 space-y-2">
+                          {resourceSuggestions.docs.map((doc, i) => (
+                            <li key={i} className="text-sm">
+                              <a 
+                                href={doc} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 transition-colors"
+                              >
+                                {doc}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-zinc-600 dark:text-zinc-400 text-sm">No documentation links available.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : resourceError ? (
+                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-600 text-white">
+                      📚
+                    </div>
+                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
+                  </div>
+                  <div className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                    <p className="text-red-700 dark:text-red-300 text-sm">{resourceError}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white">
+                      📚
+                    </div>
+                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
+                  </div>
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-zinc-600 dark:text-zinc-400 text-sm">Click "Resources" to get personalized learning suggestions for your code.</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -546,8 +626,8 @@ export default function DebugPage() {
               visualizationData={algorithmVisualization}
             />
           )}
-        </div>
-      </div>
+        </aside>
+      </main>
     </div>
   );
 } 

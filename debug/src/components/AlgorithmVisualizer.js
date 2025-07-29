@@ -8,6 +8,7 @@ export default function AlgorithmVisualizer({ visualizationData }) {
   const [showPointers, setShowPointers] = useState(true);
   const [showComparisons, setShowComparisons] = useState(true);
   const [useD3, setUseD3] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const intervalRef = useRef(null);
 
   // Auto-play functionality
@@ -29,9 +30,16 @@ export default function AlgorithmVisualizer({ visualizationData }) {
 
   if (!visualizationData || !visualizationData.animationSteps) {
     return (
-      <div className="bg-zinc-100 dark:bg-zinc-800 p-6 rounded-xl shadow w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100">
-        <h2 className="text-xl font-bold mb-4">🎬 Algorithm Visualizer</h2>
-        <p className="text-zinc-600 dark:text-zinc-400">No visualization data available.</p>
+      <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 text-white">
+            📋
+          </div>
+          <h2 className="text-xl font-bold">🎬 Algorithm Visualizer</h2>
+        </div>
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-zinc-600 dark:text-zinc-400">No visualization data available.</p>
+        </div>
       </div>
     );
   }
@@ -664,11 +672,17 @@ export default function AlgorithmVisualizer({ visualizationData }) {
   };
 
   return (
-    <div className="bg-zinc-100 dark:bg-zinc-800 p-6 rounded-xl shadow w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100">
+    <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">🎬 Algorithm Visualizer</h2>
-        <div className="text-sm text-zinc-600 dark:text-zinc-400">
-          Step {currentStep + 1} of {totalSteps}
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 text-white">
+            📋
+          </div>
+          <h2 className="text-xl font-bold">🎬 Algorithm Visualizer</h2>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          ⌨️
+          <span>Step {currentStep + 1} of {totalSteps}</span>
         </div>
       </div>
 
@@ -680,9 +694,14 @@ export default function AlgorithmVisualizer({ visualizationData }) {
       </div>
 
       {/* Current Step Description */}
-      <div className="mb-4 p-3 bg-zinc-200 dark:bg-zinc-700 rounded-lg">
-        <div className="font-semibold mb-1">Step {currentStep + 1}: {currentAnimation?.action || 'execute'}</div>
-        <div className="text-sm text-zinc-700 dark:text-zinc-300">{currentAnimation?.description || 'Processing...'}</div>
+      <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold flex items-center justify-center">
+            {currentStep + 1}
+          </div>
+          <div className="font-semibold">{currentAnimation?.action || 'execute'}</div>
+        </div>
+        <div className="text-sm text-zinc-700 dark:text-zinc-300 ml-8">{currentAnimation?.description || 'Processing...'}</div>
       </div>
 
       {/* Visualization Type Toggle */}
@@ -707,16 +726,16 @@ export default function AlgorithmVisualizer({ visualizationData }) {
           <button
             onClick={handleStepBackward}
             disabled={currentStep === 0}
-            className="px-3 py-1 rounded bg-zinc-600 text-white font-semibold disabled:opacity-50 text-sm hover:bg-zinc-700 transition-colors"
-            title="Previous step"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-600 text-white font-semibold disabled:opacity-50 text-sm hover:bg-zinc-700 transition-all duration-200 hover:scale-105"
+            title="Previous step (←)"
           >
-            ⏪
+            ⏪ Previous
           </button>
           
           {isPlaying ? (
             <button
               onClick={handlePause}
-              className="px-4 py-2 rounded bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-colors"
+              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-all duration-200 hover:scale-105"
             >
               ⏸️ Pause
             </button>
@@ -724,7 +743,7 @@ export default function AlgorithmVisualizer({ visualizationData }) {
             <button
               onClick={handlePlay}
               disabled={currentStep >= totalSteps - 1}
-              className="px-4 py-2 rounded bg-green-600 text-white font-semibold text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-sm hover:bg-green-700 transition-all duration-200 hover:scale-105 disabled:opacity-50"
             >
               ▶️ Play
             </button>
@@ -733,15 +752,15 @@ export default function AlgorithmVisualizer({ visualizationData }) {
           <button
             onClick={handleStepForward}
             disabled={currentStep >= totalSteps - 1}
-            className="px-3 py-1 rounded bg-zinc-600 text-white font-semibold disabled:opacity-50 text-sm hover:bg-zinc-700 transition-colors"
-            title="Next step"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-600 text-white font-semibold disabled:opacity-50 text-sm hover:bg-zinc-700 transition-all duration-200 hover:scale-105"
+            title="Next step (→)"
           >
-            ⏩
+            Next ⏩
           </button>
           
           <button
             onClick={handleReset}
-            className="px-3 py-1 rounded bg-zinc-600 text-white font-semibold text-sm hover:bg-zinc-700 transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-600 text-white font-semibold text-sm hover:bg-zinc-700 transition-all duration-200 hover:scale-105"
             title="Reset to beginning"
           >
             🔄 Reset
@@ -772,6 +791,7 @@ export default function AlgorithmVisualizer({ visualizationData }) {
               onChange={(e) => setShowPointers(e.target.checked)}
               className="rounded"
             />
+            <span className={showPointers ? 'text-blue-500' : 'text-zinc-400'}>👁️</span>
             Show Pointers
           </label>
           <label className="flex items-center gap-2">
@@ -781,17 +801,38 @@ export default function AlgorithmVisualizer({ visualizationData }) {
               onChange={(e) => setShowComparisons(e.target.checked)}
               className="rounded"
             />
+            <span className={showComparisons ? 'text-blue-500' : 'text-zinc-400'}>👁️</span>
             Show Comparisons
           </label>
         </div>
       </div>
       
       {/* Progress Bar */}
-      <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-        <div
-          className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
-        ></div>
+      <div className="mb-4">
+        <div className="w-full bg-zinc-300 dark:bg-zinc-600 rounded-full h-3 overflow-hidden">
+          <div
+            className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+          ></div>
+        </div>
+        <div className="flex justify-between text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+          <span>Step {currentStep + 1}</span>
+          <span>{Math.round(((currentStep + 1) / totalSteps) * 100)}% Complete</span>
+        </div>
+      </div>
+
+      {/* Keyboard Shortcuts Help */}
+      <div className="bg-gradient-to-r from-zinc-50 to-gray-50 dark:from-zinc-800 dark:to-gray-800 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700">
+        <div className="flex items-center gap-2 mb-2">
+          ⌨️
+          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Keyboard Shortcuts:</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+          <div>← Previous</div>
+          <div>→ Next</div>
+          <div>Space Play/Pause</div>
+          <div>R Reset</div>
+        </div>
       </div>
     </div>
   );

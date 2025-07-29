@@ -56,22 +56,24 @@ export default function ChallengePage() {
       console.log('Fetching all challenges for language:', language);
       const res = await fetch(`/api/challenge/list?language=${language}`);
       const data = await res.json();
-      console.log('All challenges loaded:', data);
+      console.log('All challenges loaded for language:', language, data);
       setAllChallenges(data.challenges);
       setCurrentWeek(data.currentWeek);
       
       // If no challenges exist, show a message
       if (data.totalChallenges === 0) {
-        console.log('No challenges found, suggesting to generate new ones');
-        setFeedback("No challenges found for this week. Click 'Generate New' to create challenges using AI.");
+        console.log('No challenges found for language:', language);
+        setFeedback(`No ${language} challenges found for this week. Click 'Generate New' to create ${language} challenges using AI.`);
+      } else {
+        console.log(`Found ${data.totalChallenges} ${language} challenges`);
       }
       
       // Set initialLoading to false after first load
       console.log('Setting initialLoading to false');
       setInitialLoading(false);
     } catch (e) {
-      console.error('Error fetching all challenges:', e);
-      setFeedback("Error loading challenges. Please try again.");
+      console.error('Error fetching all challenges for language:', language, e);
+      setFeedback(`Error loading ${language} challenges. Please try again.`);
       console.log('Setting initialLoading to false due to error');
       setInitialLoading(false);
     }
@@ -80,7 +82,7 @@ export default function ChallengePage() {
   // Generate new challenges using Gemini
   const generateNewChallenges = async () => {
     setGeneratingChallenges(true);
-    setFeedback("Generating new challenges using AI... This may take a moment.");
+    setFeedback(`Generating new ${language} challenges using AI... This may take a moment.`);
     try {
       const res = await fetch("/api/challenge/generate", {
         method: "POST",
@@ -88,10 +90,10 @@ export default function ChallengePage() {
         body: JSON.stringify({ language }),
       });
       const data = await res.json();
-      console.log('Challenges generated:', data);
+      console.log('Challenges generated for language:', language, data);
       await fetchAllChallenges();
       await fetchChallenge();
-      setFeedback("✅ New challenges generated successfully! Ready to play.");
+      setFeedback(`✅ New ${language} challenges generated successfully! Ready to play.`);
     } catch (e) {
       console.error('Error generating challenges:', e);
       setFeedback("❌ Failed to generate challenges. Please try again.");
@@ -125,7 +127,22 @@ export default function ChallengePage() {
       setMode(targetMode);
       setDifficulty(targetDifficulty);
       setChallenge(targetChallenge);
-      setCode(targetChallenge.starterCode);
+      
+      // Set the appropriate code based on challenge mode
+      if (targetChallenge.mode === 'output-predictor') {
+        // For output-predictor, don't set any code in editor - users only predict output
+        setCode('');
+      } else if (targetChallenge.mode === 'fix-bug') {
+        // For fix-bug, start with the buggy code that needs to be fixed
+        setCode(targetChallenge.starterCode);
+      } else if (targetChallenge.mode === 'refactor-rush') {
+        // For refactor-rush, start with the inefficient code that needs to be optimized
+        setCode(targetChallenge.starterCode);
+      } else {
+        // Fallback
+        setCode(targetChallenge.starterCode);
+      }
+      
       setLanguage(targetChallenge.language);
       setUserOutput("");
       setFeedback("");
@@ -202,16 +219,32 @@ export default function ChallengePage() {
         throw new Error("No challenge found");
       }
       const data = await res.json();
-      console.log('Challenge fetched:', data);
+      console.log('Challenge fetched for language:', selectedLanguage, data);
       setChallenge(data);
-      setCode(data.starterCode);
+      
+      // Set the appropriate code based on challenge mode
+      if (data.mode === 'output-predictor') {
+        // For output-predictor, don't set any code in editor - users only predict output
+        setCode('');
+      } else if (data.mode === 'fix-bug') {
+        // For fix-bug, start with the buggy code that needs to be fixed
+        setCode(data.starterCode);
+      } else if (data.mode === 'refactor-rush') {
+        // For refactor-rush, start with the inefficient code that needs to be optimized
+        setCode(data.starterCode);
+      } else {
+        // Fallback
+        setCode(data.starterCode);
+      }
+      
+      // Update language state to match the fetched challenge
       setLanguage(data.language);
       setUserOutput("");
       setInitialLoading(false);
     } catch (e) {
-      console.error('Error fetching challenge:', e);
+      console.error('Error fetching challenge for language:', selectedLanguage, e);
       setChallenge(null);
-      setFeedback("No challenge found for this mode/difficulty. Please click 'Generate New' to create challenges using AI.");
+      setFeedback(`No ${selectedLanguage} challenges found for this mode/difficulty. Please click 'Generate New' to create ${selectedLanguage} challenges using AI.`);
       setInitialLoading(false);
     } finally {
       setLoading(false);
@@ -252,8 +285,30 @@ export default function ChallengePage() {
   useEffect(() => {
     if (!initialLoading) {
       fetchAllChallenges();
+      // Also fetch a new challenge for the current language if we have one
+      if (challenge && challenge.language !== language) {
+        fetchChallenge(mode, difficulty, language);
+      }
     }
   }, [mode, difficulty, language]);
+
+  // Language change handler
+  const handleLanguageChange = (newLanguage) => {
+    console.log('Language changed from', language, 'to', newLanguage);
+    setLanguage(newLanguage);
+    // Clear current challenge when language changes
+    setChallenge(null);
+    setCode('');
+    setUserOutput('');
+    setFeedback('');
+    setDetailedFeedback('');
+    setHint('');
+    setHintUsed(false);
+    setSkipped(false);
+    setTimeLeft(180);
+    setXpEarned(0);
+    setShowDetailedFeedback(false);
+  };
 
   // Submit handler
   const handleSubmit = async () => {
@@ -344,7 +399,7 @@ export default function ChallengePage() {
       {!initialLoading && (
         <>
           {/* Top Navigation Bar - LeetCode Style */}
-          <div className="bg-white dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 px-6 py-3">
+          <div className="bg-white dark:bg-zinc-800 px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-6">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">Weekly Contest - Week {currentWeek}</h1>
@@ -370,7 +425,7 @@ export default function ChallengePage() {
                   <select
                     className="px-3 py-1 text-sm border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-gray-900 dark:text-white"
                     value={language}
-                    onChange={e => setLanguage(e.target.value)}
+                    onChange={e => handleLanguageChange(e.target.value)}
                   >
                     {LANGUAGES.map(l => (
                       <option key={l.value} value={l.value}>{l.label}</option>
@@ -411,7 +466,7 @@ export default function ChallengePage() {
           </div>
 
           {/* Challenge Navigation */}
-          <div className="bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700 px-6 py-2">
+          <div className="bg-gray-50 dark:bg-zinc-800 px-6 py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <button
@@ -574,9 +629,12 @@ export default function ChallengePage() {
                   <div className="h-full">
                     <div className="mb-4">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Predict Output</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        Analyze the code shown in the description and predict what output it will produce.
+                      </p>
                       <textarea
                         className="w-full h-32 p-3 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-gray-900 dark:text-white resize-none"
-                        placeholder="Enter your predicted output here..."
+                        placeholder="Enter your predicted output here... (e.g., [1, 2, 3] or 'Hello World')"
                         value={userOutput}
                         onChange={e => setUserOutput(e.target.value)}
                         disabled={loading || skipped || timeLeft === 0}
@@ -586,9 +644,20 @@ export default function ChallengePage() {
                 ) : (
                   <div className="h-full">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Your Solution</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        {challenge?.mode === 'fix-bug' ? 'Fix the Bug' : 
+                         challenge?.mode === 'refactor-rush' ? 'Optimize the Code' : 'Your Solution'}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        {challenge?.mode === 'fix-bug' ? 
+                          'The code below has a bug. Identify and fix it.' :
+                         challenge?.mode === 'refactor-rush' ? 
+                          'The code below is inefficient. Optimize it for better performance.' :
+                          'Write your solution below.'
+                        }
+                      </p>
                     </div>
-                    <div className="h-[calc(100%-60px)]">
+                    <div className="h-[calc(100%-80px)]">
                       <CodeEditor
                         value={code}
                         language={language}
@@ -643,22 +712,22 @@ export default function ChallengePage() {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-lg p-8 max-w-lg w-full border border-zinc-200 dark:border-zinc-700">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">🏆 Leaderboard</h2>
+              <h2 className="text-2xl font-bold text-white">🏆 Leaderboard</h2>
               <button className="text-lg px-3 py-1 rounded bg-zinc-700 text-white" onClick={() => setShowLeaderboard(false)}>Close</button>
             </div>
             <table className="w-full text-left">
               <thead>
                 <tr>
-                  <th className="py-1">#</th>
-                  <th className="py-1">User</th>
-                  <th className="py-1">XP</th>
-                  <th className="py-1">Rank</th>
-                  <th className="py-1">Attempts</th>
+                  <th className="py-1 text-white">#</th>
+                  <th className="py-1 text-white">User</th>
+                  <th className="py-1 text-white">XP</th>
+                  <th className="py-1 text-white">Rank</th>
+                  <th className="py-1 text-white">Attempts</th>
                 </tr>
               </thead>
               <tbody>
                 {leaderboard.map((u, i) => (
-                  <tr key={u.userId} className="border-b border-zinc-200 dark:border-zinc-700">
+                  <tr key={u.userId} className="border-b border-zinc-200 dark:border-zinc-700 text-white">
                     <td className="py-1">{i + 1}</td>
                     <td className="py-1">{u.userId.slice(-6)}</td>
                     <td className="py-1">{u.xp}</td>

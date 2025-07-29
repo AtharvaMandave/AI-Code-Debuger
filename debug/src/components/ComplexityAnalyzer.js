@@ -5,7 +5,7 @@ export default function ComplexityAnalyzer({ complexityData }) {
 
   if (!complexityData) {
     return (
-      <div className="bg-zinc-100 dark:bg-zinc-800 p-6 rounded-xl shadow w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100">
+      <div className="bg-zinc-100 dark:bg-zinc-800 p-6 rounded-xl shadow w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white">
         <h2 className="text-xl font-bold mb-4">🧮 Complexity Analyzer</h2>
         <p className="text-zinc-600 dark:text-zinc-400">No complexity analysis available.</p>
       </div>
@@ -53,7 +53,7 @@ export default function ComplexityAnalyzer({ complexityData }) {
   const language = detectLanguage(improvedCode);
 
   return (
-    <div className="bg-zinc-100 dark:bg-zinc-800 p-6 rounded-xl shadow w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100">
+    <div className="bg-zinc-100 dark:bg-zinc-800 p-6 rounded-xl shadow w-full max-w-2xl border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white">
       <h2 className="text-xl font-bold mb-4">🧮 Complexity Analyzer</h2>
 
       {/* Time Complexity */}
@@ -152,8 +152,8 @@ export default function ComplexityAnalyzer({ complexityData }) {
               </div>
               
               {/* Code Content */}
-              <div className="p-4 overflow-x-auto">
-                <pre className="text-sm text-zinc-100 font-mono leading-relaxed">
+              <div className="p-4 min-h-[120px] max-h-[300px] overflow-y-auto">
+                <pre className="text-sm text-zinc-100 font-mono leading-relaxed whitespace-pre-wrap break-words">
                   <code>{formatCode(improvedCode)}</code>
                 </pre>
               </div>

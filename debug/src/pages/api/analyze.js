@@ -14,14 +14,71 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No code provided' });
   }
 
-  let prompt = '';
-  if (level === 'beginner') {
-    prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs\nSuggest corrections\nExplain in plain English for a beginner (ELI5). Use analogies, metaphors, and visuals. Avoid technical jargon. Use simple terms. Where possible, include related image URLs (e.g., for recursion, include an image of a stack of plates).\nBreak down line-by-line\nReturn a flowchart-friendly JSON of code logic.\n\nFor the visualization, each node should represent a logical block (loop, condition, function call, decision, etc.) and MUST include:\n- code_snippet: the code for that block\n- variables: object of variables in scope or changed in that block (if available)\n- line: line number or range for that block\n\nCode:\n${code}\n\nCRITICAL: Return ONLY a valid JSON object. No explanations, no markdown, no code blocks. Ensure all strings are properly escaped and all quotes are double quotes.\n\nRespond in this exact JSON structure:\n{\n"explanation": "Your explanation here",\n"bugs_detected": true,\n"issues": ["issue1", "issue2"],\n"suggested_fix": "Your suggested fix here",\n"line_by_line": {"1": "line 1 explanation", "2": "line 2 explanation"},\n"images": ["image_url1", "image_url2"],\n"visualization": {\n"nodes": [{"id": "1", "type": "function", "label": "Function", "code_snippet": "code here", "variables": {"var1": "value1"}, "line": "1-5"}],\n"edges": [{"from": "1", "to": "2"}]\n}\n}`;
-  } else if (level === 'intermediate') {
-    prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs and logical errors\nSuggest corrections with explanations\nExplain the code logic and potential issues\nBreak down line-by-line with technical details\nReturn a flowchart-friendly JSON of code logic.\n\nFor the visualization, each node should represent a logical block (loop, condition, function call, decision, etc.) and MUST include:\n- code_snippet: the code for that block\n- variables: object of variables in scope or changed in that block (if available)\n- line: line number or range for that block\n\nCode:\n${code}\n\nCRITICAL: Return ONLY a valid JSON object. No explanations, no markdown, no code blocks. Ensure all strings are properly escaped and all quotes are double quotes.\n\nRespond in this exact JSON structure:\n{\n"explanation": "Your explanation here",\n"bugs_detected": true,\n"issues": ["issue1", "issue2"],\n"suggested_fix": "Your suggested fix here",\n"line_by_line": {"1": "line 1 explanation", "2": "line 2 explanation"},\n"images": ["image_url1", "image_url2"],\n"visualization": {\n"nodes": [{"id": "1", "type": "function", "label": "Function", "code_snippet": "code here", "variables": {"var1": "value1"}, "line": "1-5"}],\n"edges": [{"from": "1", "to": "2"}]\n}\n}`;
-  } else {
-    prompt = `You are an AI code assistant. Given the following code snippet, do the following:\n\nDetect bugs, logical errors, and performance issues\nSuggest optimizations and corrections\nProvide detailed technical analysis\nBreak down line-by-line with advanced concepts\nReturn a flowchart-friendly JSON of code logic.\n\nFor the visualization, each node should represent a logical block (loop, condition, function call, decision, etc.) and MUST include:\n- code_snippet: the code for that block\n- variables: object of variables in scope or changed in that block (if available)\n- line: line number or range for that block\n\nCode:\n${code}\n\nCRITICAL: Return ONLY a valid JSON object. No explanations, no markdown, no code blocks. Ensure all strings are properly escaped and all quotes are double quotes.\n\nRespond in this exact JSON structure:\n{\n"explanation": "Your explanation here",\n"bugs_detected": true,\n"issues": ["issue1", "issue2"],\n"suggested_fix": "Your suggested fix here",\n"line_by_line": {"1": "line 1 explanation", "2": "line 2 explanation"},\n"images": ["image_url1", "image_url2"],\n"visualization": {\n"nodes": [{"id": "1", "type": "function", "label": "Function", "code_snippet": "code here", "variables": {"var1": "value1"}, "line": "1-5"}],\n"edges": [{"from": "1", "to": "2"}]\n}\n}`;
+  let prompt = `
+You are an AI code assistant. Given the following code snippet, perform the following tasks:
+
+- Detect bugs, logical errors${level === 'advanced' ? ', and performance issues' : ''}
+- Suggest corrections${level !== 'beginner' ? ' with explanations' : ''}
+- ${level === 'beginner'
+  ? 'Explain in plain English (ELI5 style), using analogies, metaphors, visuals, and simple terms. Avoid technical jargon. Where possible, include public image URLs to aid understanding (e.g., stack of plates for recursion).'
+  : level === 'intermediate'
+  ? 'Explain the code logic and potential issues using technical detail suitable for intermediate programmers.'
+  : 'Provide deep technical analysis and optimization suggestions with advanced concepts.'}
+
+- Break down the code line-by-line. Use actual line numbers from the user's code. If a block spans multiple lines, use "start-end" format.
+- Return a flowchart-friendly JSON of code logic.
+
+IMPORTANT BUG DETECTION RULES:
+- Set "bugs_detected": true if you find ANY bugs, errors, or issues in the code
+- Set "bugs_detected": false ONLY if the code is completely correct and has no issues
+- If you detect bugs, ALWAYS include them in the "issues" array
+- Common bugs to detect: undefined variables, syntax errors, logical errors, infinite loops, incorrect comparisons, missing semicolons, wrong function calls, etc.
+
+For the visualization, each node MUST include:
+- "code_snippet": the code for that block
+- "variables": object of variables in scope or modified in that block
+- "line": line number or range for that block
+- "type": one of "function", "condition", "loop", "call", "return", "declaration", "assignment", "decision", "output", "input"
+
+CRITICAL: Respond ONLY with a valid JSON object. No markdown, no explanations, no code blocks. Do NOT include any text before or after the JSON. All strings must use double quotes and be properly escaped. If the output is too long, prioritize explanation and line-by-line breakdown. Truncate visualization if needed.
+
+Code:
+${code}
+
+Respond in this exact JSON structure:
+{
+  "explanation": "Your explanation here",
+  "bugs_detected": true/false,
+  "issues": ["issue1", "issue2"],
+  "suggested_fix": "Your suggested fix here",
+  "line_by_line": {
+    "1": "line 1 explanation",
+    "2": "line 2 explanation"
+  },
+  "images": ["image_url1", "image_url2"],
+  "visualization": {
+    "nodes": [
+      {
+        "id": "1",
+        "type": "function",
+        "label": "Function",
+        "code_snippet": "code here",
+        "variables": {
+          "var1": "value1"
+        },
+        "line": "1-5"
+      }
+    ],
+    "edges": [
+      {
+        "from": "1",
+        "to": "2"
+      }
+    ]
   }
+}
+`;
+
 
   const { userId } = await getAuth(req);
   let aiResponse;
@@ -76,6 +133,31 @@ export default async function handler(req, res) {
         }
         return String(issue);
       });
+    }
+
+    // Ensure consistency between bugs_detected and issues
+    // If there are issues detected, bugs_detected should be true
+    if (Array.isArray(aiResponse.issues) && aiResponse.issues.length > 0) {
+      aiResponse.bugs_detected = true;
+    }
+    
+    // If bugs_detected is true but no issues array, create one from explanation
+    if (aiResponse.bugs_detected === true && (!aiResponse.issues || aiResponse.issues.length === 0)) {
+      // Extract bug information from explanation if available
+      if (aiResponse.explanation) {
+        const bugKeywords = ['bug', 'error', 'issue', 'problem', 'wrong', 'incorrect', 'undefined', 'not defined'];
+        const hasBugKeywords = bugKeywords.some(keyword => 
+          aiResponse.explanation.toLowerCase().includes(keyword)
+        );
+        
+        if (hasBugKeywords) {
+          aiResponse.issues = [aiResponse.explanation];
+        } else {
+          aiResponse.bugs_detected = false;
+        }
+      } else {
+        aiResponse.bugs_detected = false;
+      }
     }
   } catch (e) {
     console.error('Failed to parse Gemini response:', e.message);
