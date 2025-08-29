@@ -14,7 +14,7 @@ const UserGameStatsSchema = new mongoose.Schema({
   },
   rank: { 
     type: String, 
-    default: 'Bronze',
+    default: 'Rookie',
     enum: {
       values: ['Rookie', 'Bronze', 'Silver', 'Gold', 'Diamond'],
       message: 'Rank must be one of: Rookie, Bronze, Silver, Gold, Diamond'
@@ -27,20 +27,13 @@ const UserGameStatsSchema = new mongoose.Schema({
   },
   completedChallenges: [{ 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Challenge',
-    validate: {
-      validator: function(v) {
-        return v.length <= 1000; // Max 1000 completed challenges
-      },
-      message: 'Cannot have more than 1000 completed challenges'
-    }
+    ref: 'Challenge'
   }],
   lastPlayed: { 
     type: Date, 
     default: Date.now,
     index: true
   },
-  // Additional stats for better analytics
   totalCorrect: {
     type: Number,
     default: 0,

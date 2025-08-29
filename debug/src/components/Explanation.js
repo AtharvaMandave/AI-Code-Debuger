@@ -33,12 +33,13 @@ function renderDesc(desc) {
   return String(desc);
 }
 
-export default function Explanation({ aiResponse }) {
+export default function Explanation({ aiResponse, onApplyFix }) {
   if (!aiResponse) return null;
 
   const { explanation, bugs_detected, issues, suggested_fix, line_by_line, images } = aiResponse;
   const [isPlaying, setIsPlaying] = useState(false);
   const [copied, setCopied] = useState({});
+  const [applyingFix, setApplyingFix] = useState(false);
   const synthRef = useRef(null);
 
   const handlePlayExplanation = () => {
@@ -63,6 +64,19 @@ export default function Explanation({ aiResponse }) {
       setTimeout(() => setCopied(prev => ({ ...prev, [key]: false })), 2000);
     } catch (err) {
       console.error('Failed to copy: ', err);
+    }
+  };
+
+  const handleAutoApplyFix = async () => {
+    if (!suggested_fix || !onApplyFix) return;
+    
+    setApplyingFix(true);
+    try {
+      await onApplyFix(suggested_fix);
+    } catch (error) {
+      console.error('Failed to apply fix:', error);
+    } finally {
+      setApplyingFix(false);
     }
   };
 
@@ -204,6 +218,32 @@ export default function Explanation({ aiResponse }) {
                 <code>{suggested_fix}</code>
               </pre>
             </div>
+            {/* Auto Apply Button - Only show when bugs are detected and fix is available */}
+            {bugs_detected && onApplyFix && (
+              <div className="px-4 pb-4">
+                <button
+                  onClick={handleAutoApplyFix}
+                  disabled={applyingFix}
+                  className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  title="Automatically apply the suggested fix to your code"
+                >
+                  {applyingFix ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Applying Fix...
+                    </>
+                  ) : (
+                    <>
+                      <span>🔧</span>
+                      Auto Apply Fix
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-zinc-400 mt-2 text-center">
+                  This will replace your current code with the fixed version
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-lg border border-zinc-300 dark:border-zinc-700">

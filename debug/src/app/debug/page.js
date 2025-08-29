@@ -23,10 +23,9 @@ export default function DebugPage() {
   const resultRef = useRef(null);
   const [toast, setToast] = useState({ message: '', type: 'success' });
   const showToast = (message, type = 'success') => setToast({ message, type });
-  const [view, setView] = useState('debug'); // 'debug' or 'visualize'
-  const [highlightedLines, setHighlightedLines] = useState([]); // <-- new state
-
-  const [complexity, setComplexity] = useState('beginner'); // 'beginner', 'intermediate', 'expert'
+  const [view, setView] = useState('debug');
+  const [highlightedLines, setHighlightedLines] = useState([]);
+  const [complexity, setComplexity] = useState('beginner');
   const [structureTimeline, setStructureTimeline] = useState(null);
   const [resourceSuggestions, setResourceSuggestions] = useState(null);
   const [resourceLoading, setResourceLoading] = useState(false);
@@ -36,35 +35,46 @@ export default function DebugPage() {
   const [visualizeLoading, setVisualizeLoading] = useState(false);
   const [visualizeError, setVisualizeError] = useState(null);
   const [visualStep, setVisualStep] = useState(0);
-  const [rightTab, setRightTab] = useState('debug'); // 'debug', 'visualize', 'resources'
-
-  // Step Debugger state
+  const [rightTab, setRightTab] = useState('debug');
   const [debugSteps, setDebugSteps] = useState(null);
   const [debugLoading, setDebugLoading] = useState(false);
   const [debugError, setDebugError] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showStepDebugger, setShowStepDebugger] = useState(false);
-
-  // Algorithm Visualizer state
   const [algorithmVisualization, setAlgorithmVisualization] = useState(null);
   const [algorithmLoading, setAlgorithmLoading] = useState(false);
   const [algorithmError, setAlgorithmError] = useState(null);
   const [showAlgorithmVisualizer, setShowAlgorithmVisualizer] = useState(false);
-
-  // Complexity Analyzer state
   const [complexityAnalysis, setComplexityAnalysis] = useState(null);
   const [complexityLoading, setComplexityLoading] = useState(false);
   const [complexityError, setComplexityError] = useState(null);
   const [showComplexity, setShowComplexity] = useState(false);
-
+  const [instrumentLoading, setInstrumentLoading] = useState(false);
+  const [instrumentError, setInstrumentError] = useState(null);
+  const [showInstrumented, setShowInstrumented] = useState(false);
+  const [convertedCode, setConvertedCode] = useState('');
+  const [convertLoading, setConvertLoading] = useState(false);
+  const [convertError, setConvertError] = useState(null);
+  const [showConverted, setShowConverted] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState('python');
 
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-zinc-900">
-        <div className="bg-zinc-100 dark:bg-zinc-800 p-8 rounded-xl shadow-lg flex flex-col items-center">
-          <h2 className="text-2xl font-bold mb-4">Sign in to use the AI Debugger</h2>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <div className="relative p-12 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl text-center">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center text-white text-3xl font-bold mx-auto mb-6">
+            🤖
+          </div>
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
+            Sign in to Access AI Debugger
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-md">
+            Unlock the full power of AI-powered code analysis, debugging, and visualization.
+          </p>
           <SignInButton>
-            <button className="px-6 py-3 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-semibold text-lg shadow hover:scale-105 transition-all duration-200">Sign In</button>
+            <button className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-bold text-lg shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105">
+              Get Started
+            </button>
           </SignInButton>
         </div>
       </div>
@@ -90,7 +100,6 @@ export default function DebugPage() {
       }
       const data = await res.json();
       setAiResponse(data);
-      // Structure visualizer call
       const structRes = await fetch('/api/structure-visualizer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,8 +125,6 @@ export default function DebugPage() {
     }
   };
 
-
-
   const handleSuggestResources = async () => {
     setResourceLoading(true);
     setResourceError(null);
@@ -138,10 +145,8 @@ export default function DebugPage() {
         return;
       }
       const data = await res.json();
-      console.log('Resource suggestions received:', data);
       setResourceSuggestions(data);
     } catch (err) {
-      console.error('Error fetching resources:', err);
       setResourceError(err.message);
     } finally {
       setResourceLoading(false);
@@ -172,16 +177,19 @@ export default function DebugPage() {
       setVisualizeLoading(false);
     }
   };
+
   const handleNext = () => {
     if (visualStructures && visualStep < visualStructures.length - 1) {
       setVisualStep(visualStep + 1);
     }
   };
+
   const handlePrev = () => {
     if (visualStructures && visualStep > 0) {
       setVisualStep(visualStep - 1);
     }
   };
+
   const handleStop = () => {
     setVisualStructures(null);
     setVisualStep(0);
@@ -210,7 +218,6 @@ export default function DebugPage() {
       
       const data = await res.json();
       
-      // Validate the response structure
       if (!data || !Array.isArray(data.steps)) {
         setDebugError('Invalid debug steps response structure');
         showToast('Invalid debug steps response', 'error');
@@ -230,7 +237,6 @@ export default function DebugPage() {
   const handleStepChange = (newStepIndex) => {
     setCurrentStepIndex(newStepIndex);
     
-    // Update highlighted lines if available
     if (debugSteps && debugSteps.steps[newStepIndex] && debugSteps.steps[newStepIndex].highlightedLines) {
       setHighlightedLines(debugSteps.steps[newStepIndex].highlightedLines);
     } else {
@@ -240,13 +246,11 @@ export default function DebugPage() {
 
   const handleStepDebugToggle = () => {
     if (showStepDebugger) {
-      // Close step debugger
       setShowStepDebugger(false);
       setDebugSteps(null);
       setCurrentStepIndex(0);
       setHighlightedLines([]);
     } else {
-      // Open step debugger
       handleStepDebug();
     }
   };
@@ -273,7 +277,6 @@ export default function DebugPage() {
       
       const data = await res.json();
       
-      // Validate the response structure
       if (!data || !Array.isArray(data.animationSteps)) {
         setAlgorithmError('Invalid algorithm visualization data');
         showToast('Invalid algorithm visualization data', 'error');
@@ -292,11 +295,9 @@ export default function DebugPage() {
 
   const handleAlgorithmVisualizerToggle = () => {
     if (showAlgorithmVisualizer) {
-      // Close algorithm visualizer
       setShowAlgorithmVisualizer(false);
       setAlgorithmVisualization(null);
     } else {
-      // Open algorithm visualizer
       handleAlgorithmVisualize();
     }
   };
@@ -326,11 +327,216 @@ export default function DebugPage() {
     }
   };
 
+  const handleApplyFix = async (suggestedFix) => {
+    try {
+      // Extract actual code fix from the suggested fix text
+      let actualFix = suggestedFix;
+      
+      // Try to extract code from markdown code blocks
+      const codeBlockMatch = suggestedFix.match(/```[\w]*\n([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        actualFix = codeBlockMatch[1].trim();
+      } else {
+        // Try to extract code from inline code blocks
+        const inlineCodeMatch = suggestedFix.match(/`([^`]+)`/g);
+        if (inlineCodeMatch && inlineCodeMatch.length > 0) {
+          // Take the first code snippet found
+          actualFix = inlineCodeMatch[0].replace(/`/g, '');
+        } else {
+          // Look for common code patterns in the explanation
+          const codePatterns = [
+            /print\(['"][^'"]*['"]\)/g,  // print("something")
+            /console\.log\(['"][^'"]*['"]\)/g,  // console.log("something")
+            /System\.out\.println\(['"][^'"]*['"]\)/g,  // System.out.println("something")
+            /printf\(['"][^'"]*['"]\)/g,  // printf("something")
+            /cout\s*<<\s*['"][^'"]*['"]/g,  // cout << "something"
+            /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*['"][^'"]*['"]/g,  // variable = "value"
+            /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*[0-9]+/g,  // variable = 123
+            /function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*{[^}]*}/g,  // function definition
+            /def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*:/g,  // Python function
+            /public\s+static\s+void\s+main\s*\([^)]*\)\s*{[^}]*}/g,  // Java main method
+          ];
+          
+          for (const pattern of codePatterns) {
+            const matches = suggestedFix.match(pattern);
+            if (matches && matches.length > 0) {
+              actualFix = matches[0];
+              break;
+            }
+          }
+        }
+      }
+      
+      // If we still have the original text, try to extract the most likely code fix
+      if (actualFix === suggestedFix) {
+        // Look for the most specific code suggestion in the text
+        const lines = suggestedFix.split('\n');
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (trimmedLine.includes('print(') || 
+              trimmedLine.includes('console.log(') ||
+              trimmedLine.includes('System.out.println(') ||
+              trimmedLine.includes('printf(') ||
+              trimmedLine.includes('cout') ||
+              trimmedLine.includes('=') ||
+              trimmedLine.includes('function') ||
+              trimmedLine.includes('def ') ||
+              trimmedLine.includes('public static void main')) {
+            actualFix = trimmedLine;
+            break;
+          }
+        }
+      }
+      
+      // Apply surgical fix - only replace the problematic parts
+      const currentCode = code;
+      let fixedCode = currentCode;
+      
+      // Common surgical fixes
+      if (actualFix.includes('print(') && currentCode.includes('print(')) {
+        // Fix print statements
+        const printRegex = /print\([^)]*\)/g;
+        if (printRegex.test(currentCode)) {
+          fixedCode = currentCode.replace(printRegex, actualFix);
+        }
+      } else if (actualFix.includes('console.log(') && currentCode.includes('console.log(')) {
+        // Fix console.log statements
+        const consoleRegex = /console\.log\([^)]*\)/g;
+        if (consoleRegex.test(currentCode)) {
+          fixedCode = currentCode.replace(consoleRegex, actualFix);
+        }
+      } else if (actualFix.includes('=') && currentCode.includes('=')) {
+        // Fix variable assignments
+        const assignmentRegex = /[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*[^;\n]*/g;
+        if (assignmentRegex.test(currentCode)) {
+          // Find the specific variable being assigned
+          const varMatch = actualFix.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=/);
+          if (varMatch) {
+            const varName = varMatch[1];
+            const specificAssignmentRegex = new RegExp(`${varName}\\s*=\\s*[^;\\n]*`, 'g');
+            fixedCode = currentCode.replace(specificAssignmentRegex, actualFix);
+          }
+        }
+      } else if (actualFix.includes('function') && currentCode.includes('function')) {
+        // Fix function definitions
+        const functionRegex = /function\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*{[^}]*}/g;
+        if (functionRegex.test(currentCode)) {
+          fixedCode = currentCode.replace(functionRegex, actualFix);
+        }
+      } else if (actualFix.includes('def ') && currentCode.includes('def ')) {
+        // Fix Python function definitions
+        const defRegex = /def\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*:/g;
+        if (defRegex.test(currentCode)) {
+          fixedCode = currentCode.replace(defRegex, actualFix);
+        }
+      } else {
+        // If no specific pattern matches, try to find and replace the problematic line
+        const lines = currentCode.split('\n');
+        const fixedLines = lines.map(line => {
+          // Check if this line contains the problematic pattern
+          if (line.includes('print(') && actualFix.includes('print(')) {
+            return actualFix;
+          } else if (line.includes('console.log(') && actualFix.includes('console.log(')) {
+            return actualFix;
+          } else if (line.includes('=') && actualFix.includes('=')) {
+            // Check if it's the same variable assignment
+            const lineVarMatch = line.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=/);
+            const fixVarMatch = actualFix.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*=/);
+            if (lineVarMatch && fixVarMatch && lineVarMatch[1] === fixVarMatch[1]) {
+              return actualFix;
+            }
+          }
+          return line;
+        });
+        fixedCode = fixedLines.join('\n');
+      }
+      
+      // Apply the surgical fix
+      setCode(fixedCode);
+      showToast('✅ Fix applied successfully!', 'success');
+      
+      // Optionally re-analyze the code to show the fixed version
+      setTimeout(() => {
+        handleAnalyze(null);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to apply fix:', error);
+      showToast('❌ Failed to apply fix. Please try again.', 'error');
+    }
+  };
+
+  const handleInstrumentCode = async () => {
+    setInstrumentLoading(true);
+    setInstrumentError(null);
+    setShowInstrumented(true);
+    try {
+      const res = await fetch('/api/instrument-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setInstrumentError(err.error || 'Unknown error');
+        return;
+      }
+      const data = await res.json();
+      setInstrumentedCode(data.instrumentedCode);
+      showToast('✅ Code instrumented successfully!', 'success');
+    } catch (err) {
+      setInstrumentError(err.message);
+      showToast('❌ Failed to instrument code. Please try again.', 'error');
+    } finally {
+      setInstrumentLoading(false);
+    }
+  };
+
+  const handleConvertCode = async () => {
+    setConvertLoading(true);
+    setConvertError(null);
+    setShowConverted(true);
+    try {
+      const res = await fetch('/api/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          source_code: code, 
+          source_language: language, 
+          target_language: targetLanguage 
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setConvertError(err.error || 'Unknown error');
+        return;
+      }
+      const data = await res.json();
+      setConvertedCode(data.translated_code);
+      showToast(`✅ Code converted to ${targetLanguage}!`, 'success');
+    } catch (err) {
+      setConvertError(err.message);
+      showToast('❌ Failed to convert code. Please try again.', 'error');
+    } finally {
+      setConvertLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-100 via-zinc-200 to-zinc-300 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900 transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-all duration-700">
+      {/* Animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-3/4 right-1/4 w-80 h-80 bg-gradient-to-r from-pink-400/10 to-orange-400/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-gradient-to-r from-cyan-400/10 to-blue-400/10 rounded-full blur-3xl animate-pulse delay-2000" />
+      </div>
+
       {/* Toast Notification */}
       {toast.message && (
-        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-lg shadow-lg text-white font-semibold transition-all duration-300 animate-fade-in flex items-center gap-3 ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-600'}`}
+        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-2xl shadow-2xl text-white font-semibold transition-all duration-300 animate-fade-in flex items-center gap-3 backdrop-blur-xl ${
+          toast.type === 'error' 
+            ? 'bg-red-500/90 border border-red-400/50' 
+            : 'bg-green-600/90 border border-green-400/50'
+        }`}
           onClick={() => setToast({ message: '', type: 'success' })}
           role="alert"
           style={{ cursor: 'pointer' }}
@@ -339,294 +545,488 @@ export default function DebugPage() {
           {toast.message}
         </div>
       )}
-      <main className="flex flex-col md:flex-row gap-4 max-w-7xl mx-auto px-4 md:px-8 ">
-        {/* Left: Code Editor and Controls */}
-        <section className="md:w-1/2 w-full flex flex-col">
-          <form onSubmit={handleAnalyze} className="flex-1 flex flex-col gap-2 mb-2">
-            <div className="flex flex-col md:flex-row gap-2 items-start md:items-center mb-1">
-              <label className="font-semibold text-zinc-700 dark:text-zinc-200 mr-2">Complexity Level:</label>
-              <select
-                value={complexity}
-                onChange={e => setComplexity(e.target.value)}
-                className="p-2 rounded border dark:bg-zinc-800 dark:text-zinc-100"
-                disabled={loading}
+
+      <main className="relative z-10 max-w-7xl mx-auto px-4 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent mb-4">
+            AI-Powered Code Analysis
+          </h1>
+          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
+            Debug smarter with AI assistance, interactive visualizations, and intelligent insights
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left: Code Editor and Controls */}
+          <section className="space-y-6">
+            {/* Complexity Level Selector */}
+            <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <label className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                  Complexity Level:
+                </label>
+                <select
+                  value={complexity}
+                  onChange={e => setComplexity(e.target.value)}
+                  className="px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+                  disabled={loading}
+                >
+                  <option value="beginner">🐣 Beginner (ELI5)</option>
+                  <option value="intermediate">🧑‍💻 Intermediate</option>
+                  <option value="expert">👨‍🚀 Expert</option>
+                </select>
+                {aiResponse && (
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-semibold shadow-lg hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105"
+                    onClick={() => handleAnalyze(null)}
+                    disabled={loading}
+                    title="Regenerate explanation with selected level"
+                  >
+                    🔄 Regenerate
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Code Editor */}
+            <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden">
+              <CodeEditor
+                value={code}
+                language={language}
+                onChange={setCode}
+                onLanguageChange={setLanguage}
+                onSubmit={handleAnalyze}
+                loading={loading}
+                highlightLines={highlightedLines}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                type="button"
+                className="p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-bold shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleComplexityAnalyze}
+                disabled={complexityLoading || !code.trim()}
               >
-                <option value="beginner">Beginner (ELI5 🐣)</option>
-                <option value="intermediate">Intermediate (🧑‍💻)</option>
-                <option value="expert">Expert (👨‍🚀)</option>
-              </select>
-              {aiResponse && (
+                {complexityLoading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="spinner"></div>
+                    <span>Analyzing Complexity...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <span>📊</span>
+                    <span>{showComplexity ? 'Re-analyze Complexity' : 'Complexity Analyzer'}</span>
+                  </div>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="p-4 rounded-2xl bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white font-bold shadow-2xl hover:shadow-green-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleAnalyze}
+                disabled={loading || !code.trim()}
+              >
+                {loading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="spinner"></div>
+                    <span>Analyzing...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <span>🤖</span>
+                    <span>Analyze Code</span>
+                  </div>
+                )}
+              </button>
+            </div>
+
+            {/* Additional Tools */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button
+                type="button"
+                className="p-3 rounded-xl bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white font-semibold shadow-lg hover:shadow-orange-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleInstrumentCode}
+                disabled={instrumentLoading || !code.trim()}
+              >
+                {instrumentLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm">Instrumenting...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>🔧</span>
+                    <span className="text-sm">Instrument Code</span>
+                  </div>
+                )}
+              </button>
+
+              <div className="flex gap-2">
+                <select
+                  value={targetLanguage}
+                  onChange={e => setTargetLanguage(e.target.value)}
+                  className="flex-1 px-3 py-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 text-sm"
+                  disabled={convertLoading}
+                >
+                  <option value="python">🐍 Python</option>
+                  <option value="javascript">🟨 JavaScript</option>
+                  <option value="java">☕ Java</option>
+                  <option value="cpp">⚙️ C++</option>
+                  <option value="csharp">💎 C#</option>
+                  <option value="go">🐹 Go</option>
+                  <option value="rust">🦀 Rust</option>
+                </select>
                 <button
                   type="button"
-                  className="ml-4 px-3 py-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded shadow hover:scale-105 transition-all duration-200"
-                  onClick={() => handleAnalyze(null)}
-                  disabled={loading}
-                  title="Regenerate explanation with selected level"
+                  className="px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 text-white font-semibold shadow-lg hover:shadow-purple-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleConvertCode}
+                  disabled={convertLoading || !code.trim()}
                 >
-                  Regenerate
+                  {convertLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm">Converting...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span>🔄</span>
+                      <span className="text-sm">Convert</span>
+                    </div>
+                  )}
                 </button>
-              )}
+              </div>
             </div>
-            <CodeEditor
-              value={code}
-              language={language}
-              onChange={setCode}
-              onLanguageChange={setLanguage}
-              onSubmit={handleAnalyze}
-              loading={loading}
-              highlightLines={highlightedLines}
-            />
-            {/* Complexity Analyzer Button */}
-            <button
-              type="button"
-              className="mt-2 px-4 py-2 rounded bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white font-semibold shadow hover:scale-105 transition-all duration-200 w-fit"
-              onClick={handleComplexityAnalyze}
-              disabled={complexityLoading || !code.trim()}
-            >
-              {complexityLoading ? 'Analyzing Complexity...' : showComplexity ? 'Re-analyze Complexity' : 'Complexity Analyzer'}
-            </button>
-            {/* Show ComplexityAnalyzer below the editor */}
+
+            {/* Complexity Analyzer Display */}
             {showComplexity && (
-              <ComplexityAnalyzer
-                complexityData={complexityAnalysis}
-              />
-            )}
-            {visualizeError && <div className="text-red-500 font-semibold mt-2">{visualizeError}</div>}
-            {instrumentedCode && (
-              <div className="mt-4 p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white">
-                <div className="font-bold text-lg mb-2">🧩 Instrumented Code (JavaScript with Tracer API)</div>
-                <pre className="bg-zinc-900 text-white rounded p-3 mb-3 text-sm overflow-x-auto border border-zinc-700">
-                  {instrumentedCode}
-                </pre>
-                <div className="mb-2 text-xs text-zinc-500">Copy and run this code in <a href="https://algorithm-visualizer.org/" target="_blank" rel="noopener noreferrer" className="underline text-blue-600 dark:text-blue-400">Algorithm Visualizer</a> or integrate tracers.js in your app for live visualization.</div>
+              <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden">
+                <ComplexityAnalyzer complexityData={complexityAnalysis} />
               </div>
             )}
 
-            {debugError && <div className="text-red-500 font-semibold mt-2">{debugError}</div>}
-            {algorithmError && <div className="text-red-500 font-semibold mt-2">{algorithmError}</div>}
-          </form>
-          {error && <div className="text-red-500 font-semibold mb-4">{error}</div>}
-
-        </section>
-        {/* Right: Tabbed Panel */}
-        <aside className="md:w-1/2 w-full flex flex-col items-center mt-2">
-          {/* Tab bar at the top of the right panel */}
-          <nav className="flex gap-2 mb-4 bg-zinc-200 dark:bg-zinc-800 rounded-full px-2 py-1 shadow-inner">
-            <button
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${rightTab === 'debug' ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
-              onClick={() => setRightTab('debug')}
-              disabled={rightTab === 'debug'}
-              aria-selected={rightTab === 'debug'}
-              aria-label="AI Explanation Tab"
-            >
-              🤖 Debug
-            </button>
-            <button
-              type="button"
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${showStepDebugger ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
-              onClick={handleStepDebugToggle}
-              disabled={debugLoading || !code.trim()}
-              aria-selected={showStepDebugger}
-              aria-label="Step Debugger Tab"
-            >
-              📋 {debugLoading ? 'Debugging...' : showStepDebugger ? 'Close' : 'Step Debugger'}
-            </button>
-            <button
-              type="button"
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${showAlgorithmVisualizer ? 'bg-gradient-to-r from-purple-500 via-blue-400 to-green-500 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
-              onClick={handleAlgorithmVisualizerToggle}
-              disabled={algorithmLoading || !code.trim()}
-              aria-selected={showAlgorithmVisualizer}
-              aria-label="Algorithm Visualizer Tab"
-            >
-              🌳 {algorithmLoading ? 'Visualizing...' : showAlgorithmVisualizer ? 'Close' : 'Algorithm Visualizer'}
-            </button>
-            <button
-              type="button"
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-semibold transition-all duration-200 shadow text-base focus:outline-none ${rightTab === 'resources' ? 'bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-white scale-105' : 'text-zinc-800 dark:text-zinc-200 hover:scale-105'}`}
-              onClick={() => {
-                console.log('Resources button clicked');
-                setRightTab('resources');
-                handleSuggestResources();
-              }}
-              disabled={resourceLoading || !code.trim()}
-              aria-selected={rightTab === 'resources'}
-              aria-label="Suggested Resources Tab"
-            >
-              📚 Resources
-            </button>
-          </nav>
-          {/* Tab content - only show when Step Debugger and Algorithm Visualizer are NOT active */}
-          {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'debug' && <Explanation aiResponse={aiResponse} />}
-          {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'visualize' && visualStructures && (
-            <>
-              <div className="flex gap-3 mb-4">
-                <button
-                  onClick={handlePrev}
-                  className="px-3 py-1 rounded bg-zinc-700 text-white font-semibold disabled:opacity-50 text-sm"
-                  disabled={visualStep === 0}
-                >
-                  Prev
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="px-3 py-1 rounded bg-blue-600 text-white font-semibold disabled:opacity-50 text-sm"
-                  disabled={visualStep === visualStructures.length - 1}
-                >
-                  Next
-                </button>
-                <button
-                  onClick={handleStop}
-                  className="px-3 py-1 rounded bg-red-600 text-white font-semibold text-sm"
-                >
-                  Stop
-                </button>
+            {/* Instrumented Code Display */}
+            {showInstrumented && (
+              <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden">
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 flex items-center justify-center text-white">
+                      🔧
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Instrumented Code</h3>
+                  </div>
+                  {instrumentError ? (
+                    <div className="p-4 rounded-2xl bg-red-500/10 backdrop-blur-xl border border-red-500/20 text-red-700 dark:text-red-300 font-semibold">
+                      🚨 {instrumentError}
+                    </div>
+                  ) : instrumentedCode ? (
+                    <div className="bg-zinc-900 dark:bg-black rounded-lg overflow-hidden border border-zinc-700 dark:border-zinc-600">
+                      <div className="flex items-center justify-between px-4 py-2 bg-zinc-800 dark:bg-zinc-900 border-b border-zinc-700 dark:border-zinc-600">
+                        <span className="text-xs text-zinc-400 uppercase font-semibold tracking-wider">
+                          Instrumented Code
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        </div>
+                      </div>
+                      <div className="p-4 max-h-[400px] overflow-y-auto">
+                        <pre className="text-sm text-zinc-100 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                          <code>{instrumentedCode}</code>
+                        </pre>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700">
+                      <p className="text-zinc-600 dark:text-zinc-400 text-sm">No instrumented code available.</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <CodeStructureVisualizer structures={[visualStructures[visualStep]]} />
-            </>
-          )}
+            )}
 
-          {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'resources' && (
-            <div className="w-full">
-              {resourceLoading ? (
-                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700">
+            {/* Converted Code Display */}
+            {showConverted && (
+              <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden">
+                <div className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white">
-                      📚
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 flex items-center justify-center text-white">
+                      🔄
                     </div>
-                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Converted Code ({targetLanguage})</h3>
                   </div>
-                  <div className="space-y-4">
-                    <div className="animate-pulse">
-                      <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/3 mb-2"></div>
-                      <div className="space-y-2">
-                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
-                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-5/6"></div>
-                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-4/6"></div>
+                  {convertError ? (
+                    <div className="p-4 rounded-2xl bg-red-500/10 backdrop-blur-xl border border-red-500/20 text-red-700 dark:text-red-300 font-semibold">
+                      🚨 {convertError}
+                    </div>
+                  ) : convertedCode ? (
+                    <div className="bg-zinc-900 dark:bg-black rounded-lg overflow-hidden border border-zinc-700 dark:border-zinc-600">
+                      <div className="flex items-center justify-between px-4 py-2 bg-zinc-800 dark:bg-zinc-900 border-b border-zinc-700 dark:border-zinc-600">
+                        <span className="text-xs text-zinc-400 uppercase font-semibold tracking-wider">
+                          {targetLanguage.toUpperCase()} Code
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        </div>
+                      </div>
+                      <div className="p-4 max-h-[400px] overflow-y-auto">
+                        <pre className="text-sm text-zinc-100 font-mono leading-relaxed whitespace-pre-wrap break-words">
+                          <code>{convertedCode}</code>
+                        </pre>
                       </div>
                     </div>
-                    <div className="animate-pulse">
-                      <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded w-1/4 mb-2"></div>
-                      <div className="space-y-2">
-                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded"></div>
-                        <div className="h-3 bg-zinc-200 dark:bg-zinc-700 rounded w-3/4"></div>
-                      </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700">
+                      <p className="text-zinc-600 dark:text-zinc-400 text-sm">No converted code available.</p>
                     </div>
-                  </div>
+                  )}
                 </div>
-              ) : resourceSuggestions ? (
-                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-white">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white">
-                      📚
-                    </div>
-                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
-                  </div>
-                  
-                  {/* YouTube Suggestions */}
-                  <div className="mb-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-600 text-white">
-                        <span className="text-lg">▶️</span>
-                      </div>
-                      <h3 className="font-semibold">YouTube Suggestions</h3>
-                    </div>
-                    <div className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-                      {resourceSuggestions.youtube && resourceSuggestions.youtube.length > 0 ? (
-                        <ol className="list-decimal ml-6 space-y-2">
-                          {resourceSuggestions.youtube.map((yt, i) => (
-                            <li key={i} className="text-sm">
-                              <a 
-                                href={yt.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 transition-colors"
-                              >
-                                {yt.title}
-                              </a>
-                            </li>
-                          ))}
-                        </ol>
-                      ) : (
-                        <p className="text-zinc-600 dark:text-zinc-400 text-sm">No YouTube suggestions available.</p>
-                      )}
-                    </div>
-                  </div>
+              </div>
+            )}
 
-                  {/* Documentation & Help Links */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                        <span className="text-lg">📘</span>
-                      </div>
-                      <h3 className="font-semibold">Documentation & Help Links</h3>
-                    </div>
-                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                      {resourceSuggestions.docs && resourceSuggestions.docs.length > 0 ? (
-                        <ul className="list-disc ml-6 space-y-2">
-                          {resourceSuggestions.docs.map((doc, i) => (
-                            <li key={i} className="text-sm">
-                              <a 
-                                href={doc} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 transition-colors"
-                              >
-                                {doc}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-zinc-600 dark:text-zinc-400 text-sm">No documentation links available.</p>
-                      )}
-                    </div>
+            {/* Error Display */}
+            {error && (
+              <div className="p-4 rounded-2xl bg-red-500/10 backdrop-blur-xl border border-red-500/20 text-red-700 dark:text-red-300 font-semibold">
+                🚨 {error}
+              </div>
+            )}
+          </section>
+
+          {/* Right: Analysis Results */}
+          <section className="space-y-6">
+            {/* Tab Navigation */}
+            <nav className="flex gap-2 p-2 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+              <button
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all duration-300 shadow focus:outline-none ${
+                  rightTab === 'debug' && !showStepDebugger && !showAlgorithmVisualizer
+                    ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white scale-105'
+                    : 'text-slate-700 dark:text-slate-300 hover:scale-105 hover:bg-white/10'
+                }`}
+                onClick={() => setRightTab('debug')}
+                disabled={rightTab === 'debug' && !showStepDebugger && !showAlgorithmVisualizer}
+              >
+                🤖 Debug
+              </button>
+
+              <button
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all duration-300 shadow focus:outline-none ${
+                  showStepDebugger
+                    ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white scale-105'
+                    : 'text-slate-700 dark:text-slate-300 hover:scale-105 hover:bg-white/10'
+                }`}
+                onClick={handleStepDebugToggle}
+                disabled={debugLoading || !code.trim()}
+              >
+                📋 {debugLoading ? 'Debugging...' : showStepDebugger ? 'Close' : 'Step Debugger'}
+              </button>
+
+              <button
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all duration-300 shadow focus:outline-none ${
+                  showAlgorithmVisualizer
+                    ? 'bg-gradient-to-r from-purple-500 via-blue-400 to-green-500 text-white scale-105'
+                    : 'text-slate-700 dark:text-slate-300 hover:scale-105 hover:bg-white/10'
+                }`}
+                onClick={handleAlgorithmVisualizerToggle}
+                disabled={algorithmLoading || !code.trim()}
+              >
+                🌳 {algorithmLoading ? 'Visualizing...' : showAlgorithmVisualizer ? 'Close' : 'Algorithm Visualizer'}
+              </button>
+
+              <button
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all duration-300 shadow focus:outline-none ${
+                  rightTab === 'resources'
+                    ? 'bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 text-white scale-105'
+                    : 'text-slate-700 dark:text-slate-300 hover:scale-105 hover:bg-white/10'
+                }`}
+                onClick={() => {
+                  setRightTab('resources');
+                  handleSuggestResources();
+                }}
+                disabled={resourceLoading || !code.trim()}
+              >
+                📚 Resources
+              </button>
+            </nav>
+
+            {/* Tab Content */}
+            <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden min-h-[600px]">
+              {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'debug' && (
+                <Explanation aiResponse={aiResponse} onApplyFix={handleApplyFix} />
+              )}
+
+              {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'visualize' && visualStructures && (
+                <div className="p-6">
+                  <div className="flex gap-3 mb-6">
+                    <button
+                      onClick={handlePrev}
+                      className="px-4 py-2 rounded-xl bg-slate-700 text-white font-semibold disabled:opacity-50 transition-all duration-300 hover:scale-105"
+                      disabled={visualStep === 0}
+                    >
+                      ← Prev
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold disabled:opacity-50 transition-all duration-300 hover:scale-105"
+                      disabled={visualStep === visualStructures.length - 1}
+                    >
+                      Next →
+                    </button>
+                    <button
+                      onClick={handleStop}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 text-white font-semibold transition-all duration-300 hover:scale-105"
+                    >
+                      Stop
+                    </button>
                   </div>
-                </div>
-              ) : resourceError ? (
-                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-pink-600 text-white">
-                      📚
-                    </div>
-                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
-                  </div>
-                  <div className="bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-                    <p className="text-red-700 dark:text-red-300 text-sm">{resourceError}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-white dark:bg-zinc-900/80 p-6 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white">
-                      📚
-                    </div>
-                    <h2 className="text-xl font-bold">📚 Suggested Resources</h2>
-                  </div>
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm">Click "Resources" to get personalized learning suggestions for your code.</p>
-                  </div>
+                  <CodeStructureVisualizer structures={[visualStructures[visualStep]]} />
                 </div>
               )}
+
+              {!showStepDebugger && !showAlgorithmVisualizer && rightTab === 'resources' && (
+                <div className="p-6">
+                  {resourceLoading ? (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-600 flex items-center justify-center text-white text-2xl">
+                          📚
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Suggested Resources</h2>
+                      </div>
+                      <div className="space-y-4">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="animate-pulse">
+                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-2"></div>
+                            <div className="space-y-2">
+                              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-5/6"></div>
+                              <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-4/6"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : resourceSuggestions ? (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-600 flex items-center justify-center text-white text-2xl">
+                          📚
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Suggested Resources</h2>
+                      </div>
+                      
+                      {/* YouTube Suggestions */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-red-500 to-pink-600 flex items-center justify-center text-white">
+                            ▶️
+                          </div>
+                          <h3 className="font-semibold text-slate-900 dark:text-white">YouTube Suggestions</h3>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border border-red-200 dark:border-red-800">
+                          {resourceSuggestions.youtube && resourceSuggestions.youtube.length > 0 ? (
+                            <ol className="list-decimal ml-6 space-y-2">
+                              {resourceSuggestions.youtube.map((yt, i) => (
+                                <li key={i} className="text-sm">
+                                  <a 
+                                    href={yt.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 transition-colors"
+                                  >
+                                    {yt.title}
+                                  </a>
+                                </li>
+                              ))}
+                            </ol>
+                          ) : (
+                            <p className="text-slate-600 dark:text-slate-400 text-sm">No YouTube suggestions available.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Documentation & Help Links */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white">
+                            📘
+                          </div>
+                          <h3 className="font-semibold text-slate-900 dark:text-white">Documentation & Help Links</h3>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800">
+                          {resourceSuggestions.docs && resourceSuggestions.docs.length > 0 ? (
+                            <ul className="list-disc ml-6 space-y-2">
+                              {resourceSuggestions.docs.map((doc, i) => (
+                                <li key={i} className="text-sm">
+                                  <a 
+                                    href={doc} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 transition-colors"
+                                  >
+                                    {doc}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-slate-600 dark:text-slate-400 text-sm">No documentation links available.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : resourceError ? (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-red-500 to-pink-600 flex items-center justify-center text-white text-2xl">
+                          📚
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Suggested Resources</h2>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border border-red-200 dark:border-red-800">
+                        <p className="text-red-700 dark:text-red-300 text-sm">{resourceError}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-600 flex items-center justify-center text-white text-2xl">
+                          📚
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Suggested Resources</h2>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800">
+                        <p className="text-slate-600 dark:text-slate-400 text-sm">Click "Resources" to get personalized learning suggestions for your code.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step Debugger Display */}
+              {showStepDebugger && (
+                <StepDebugger 
+                  debugSteps={debugSteps}
+                  currentStepIndex={currentStepIndex}
+                  onStepChange={handleStepChange}
+                />
+              )}
+
+              {/* Algorithm Visualizer Display */}
+              {showAlgorithmVisualizer && (
+                <AlgorithmVisualizer 
+                  visualizationData={algorithmVisualization}
+                />
+              )}
             </div>
-          )}
-
-          {/* Step Debugger Display - shows in the right panel when active */}
-          {showStepDebugger && (
-            <StepDebugger 
-              debugSteps={debugSteps}
-              currentStepIndex={currentStepIndex}
-              onStepChange={handleStepChange}
-            />
-          )}
-
-          {/* Algorithm Visualizer Display - shows in the right panel when active */}
-          {showAlgorithmVisualizer && (
-            <AlgorithmVisualizer 
-              visualizationData={algorithmVisualization}
-            />
-          )}
-        </aside>
+          </section>
+        </div>
       </main>
     </div>
   );

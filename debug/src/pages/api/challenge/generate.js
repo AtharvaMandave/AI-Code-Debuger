@@ -187,6 +187,14 @@ Only return the JSON object, nothing else.`;
             content = jsonMatch[0];
           }
           
+          // If no JSON found, try to find the last JSON object in the text
+          if (!content.includes('{')) {
+            const allJsonMatches = content.match(/{[^}]*}/g);
+            if (allJsonMatches && allJsonMatches.length > 0) {
+              content = allJsonMatches[allJsonMatches.length - 1];
+            }
+          }
+          
           // Clean JSON
           content = content.trim()
             .replace(/\n/g, '\n')
@@ -195,7 +203,16 @@ Only return the JSON object, nothing else.`;
             .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
             .replace(/,\s*}/g, '}')
             .replace(/,\s*]/g, ']')
-            .replace(/,\s*$/g, '');
+            .replace(/,\s*$/g, '')
+            // Fix common JSON issues
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\r/g, '\r')
+            // Remove any trailing commas
+            .replace(/,(\s*[}\]])/g, '$1')
+            // Fix unescaped quotes in strings
+            .replace(/"([^"]*)"([^"]*)"([^"]*)"/g, '"$1$2$3"');
           
           try {
             const challenge = JSON.parse(content);
@@ -232,6 +249,7 @@ Only return the JSON object, nothing else.`;
             
           } catch (parseError) {
             console.error('Failed to parse challenge:', parseError);
+            console.error('Raw content:', content);
             apiErrors++;
             
             // Create a fallback challenge
@@ -252,6 +270,7 @@ Only return the JSON object, nothing else.`;
               weekNumber: getCurrentWeekNumber()
             });
             generatedChallenges.push(fallbackChallenge);
+            console.log(`Created fallback ${challengeType.mode} ${difficulty} challenge for ${language}`);
           }
           
         } catch (apiError) {

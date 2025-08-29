@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     if (count === 0) return res.status(404).json({ error: 'No challenges found' });
     const random = Math.floor(Math.random() * count);
     const challenge = await Challenge.findOne(filter).skip(random);
-    return res.status(200).json(challenge);
+    return res.status(200).json({ challenge });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

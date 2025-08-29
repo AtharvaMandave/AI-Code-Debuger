@@ -14,15 +14,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Database connection failed' });
   }
   
-  const { userId, challengeId, userCode, userOutput, mode } = req.body;
+  const { userId, challengeId, code, userOutput, mode } = req.body;
   
   // Input validation
   if (!userId || !challengeId) {
     return res.status(400).json({ error: 'Missing userId or challengeId' });
   }
   
-  if (!userCode && mode !== 'output-predictor') {
-    return res.status(400).json({ error: 'Missing userCode for non-output-predictor challenges' });
+  if (!code && mode !== 'output-predictor') {
+    return res.status(400).json({ error: 'Missing code for non-output-predictor challenges' });
   }
   
   if (!userOutput && mode === 'output-predictor') {
@@ -64,7 +64,7 @@ Original code:
 ${challenge.starterCode}
 
 User submission:
-${userCode}
+${code}
 
 Reference solution:
 ${challenge.solution}
@@ -180,7 +180,11 @@ Return ONLY the JSON object, nothing else.`;
   // Only award XP for correct answers and if challenge not already completed
   if (correct && !stats.completedChallenges.includes(challenge._id.toString())) {
     stats.xp += xpEarned;
+    // Ensure we're adding a proper ObjectId
     stats.completedChallenges.push(challenge._id);
+    
+    // Update totalCorrect count
+    stats.totalCorrect += 1;
     
     // Improved rank logic
     if (stats.xp >= 100) stats.rank = 'Diamond';
@@ -188,6 +192,9 @@ Return ONLY the JSON object, nothing else.`;
     else if (stats.xp >= 50) stats.rank = 'Silver';
     else if (stats.xp >= 25) stats.rank = 'Bronze';
     else stats.rank = 'Rookie';
+  } else if (!correct) {
+    // Update totalIncorrect count for incorrect attempts
+    stats.totalIncorrect += 1;
   }
   
   stats.lastPlayed = new Date();
@@ -196,6 +203,15 @@ Return ONLY the JSON object, nothing else.`;
     await stats.save();
   } catch (saveError) {
     console.error('Stats save error:', saveError);
+    console.error('Stats object:', {
+      userId: stats.userId,
+      xp: stats.xp,
+      rank: stats.rank,
+      attempts: stats.attempts,
+      completedChallengesLength: stats.completedChallenges.length,
+      totalCorrect: stats.totalCorrect,
+      totalIncorrect: stats.totalIncorrect
+    });
     return res.status(500).json({ error: 'Failed to save user statistics' });
   }
 

@@ -5,16 +5,16 @@ import dynamic from "next/dynamic";
 const CodeEditor = dynamic(() => import("../../components/CodeEditor"), { ssr: false });
 
 const MODES = [
-  { value: "fix-bug", label: "Fix the Bug" },
-  { value: "output-predictor", label: "Output Predictor" },
-  { value: "refactor-rush", label: "Refactor Rush" },
+  { value: "fix-bug", label: "Fix the Bug", icon: "🐛", color: "from-red-500 to-pink-500" },
+  { value: "output-predictor", label: "Output Predictor", icon: "🔮", color: "from-purple-500 to-indigo-500" },
+  { value: "refactor-rush", label: "Refactor Rush", icon: "⚡", color: "from-green-500 to-emerald-500" },
 ];
 
 const LANGUAGES = [
-  { value: "javascript", label: "JavaScript" },
-  { value: "python", label: "Python" },
-  { value: "java", label: "Java" },
-  { value: "cpp", label: "C++" },
+  { value: "javascript", label: "JavaScript", icon: "🟨" },
+  { value: "python", label: "Python", icon: "🐍" },
+  { value: "java", label: "Java", icon: "☕" },
+  { value: "cpp", label: "C++", icon: "⚙️" },
 ];
 
 export default function ChallengePage() {
@@ -102,280 +102,173 @@ export default function ChallengePage() {
     }
   };
 
-  // Fetch leaderboard
   const fetchLeaderboard = async () => {
     try {
       const res = await fetch("/api/challenge/leaderboard");
       const data = await res.json();
-      setLeaderboard(data);
+      setLeaderboard(Array.isArray(data) ? data : []);
     } catch (e) {
-      setLeaderboard([]);
+      console.error('Error fetching leaderboard:', e);
     }
   };
 
-  // Show leaderboard modal
   const showLeaderboardModal = () => {
+    fetchLeaderboard();
     setShowLeaderboard(true);
   };
 
-  // Navigate to specific challenge
   const navigateToChallenge = (targetMode, targetDifficulty) => {
-    const modeChallenges = allChallenges[targetMode] || [];
-    const targetChallenge = modeChallenges.find(c => c.difficulty === targetDifficulty);
+    setMode(targetMode);
+    setDifficulty(targetDifficulty);
+    setFeedback("");
+    setDetailedFeedback("");
+    setHint("");
+    setHintUsed(false);
+    setSkipped(false);
+    setAttempts(0);
+    setTimeLeft(180);
+    setXpEarned(0);
+    setShowDetailedFeedback(false);
+    fetchChallenge(targetMode, targetDifficulty);
+  };
+
+  const navigateToNext = () => {
+    const currentModeIndex = MODES.findIndex(m => m.value === mode);
+    const currentDifficultyIndex = ["easy", "medium", "hard"].indexOf(difficulty);
     
-    if (targetChallenge) {
-      setMode(targetMode);
-      setDifficulty(targetDifficulty);
-      setChallenge(targetChallenge);
-      
-      // Set the appropriate code based on challenge mode
-      if (targetChallenge.mode === 'output-predictor') {
-        // For output-predictor, don't set any code in editor - users only predict output
-        setCode('');
-      } else if (targetChallenge.mode === 'fix-bug') {
-        // For fix-bug, start with the buggy code that needs to be fixed
-        setCode(targetChallenge.starterCode);
-      } else if (targetChallenge.mode === 'refactor-rush') {
-        // For refactor-rush, start with the inefficient code that needs to be optimized
-        setCode(targetChallenge.starterCode);
+    let nextModeIndex = currentModeIndex;
+    let nextDifficultyIndex = currentDifficultyIndex;
+    
+    if (currentDifficultyIndex < 2) {
+      nextDifficultyIndex = currentDifficultyIndex + 1;
+    } else {
+      nextDifficultyIndex = 0;
+      if (currentModeIndex < MODES.length - 1) {
+        nextModeIndex = currentModeIndex + 1;
       } else {
-        // Fallback
-        setCode(targetChallenge.starterCode);
+        nextModeIndex = 0;
       }
-      
-      setLanguage(targetChallenge.language);
+    }
+    
+    navigateToChallenge(MODES[nextModeIndex].value, ["easy", "medium", "hard"][nextDifficultyIndex]);
+  };
+
+  const navigateToPrevious = () => {
+    const currentModeIndex = MODES.findIndex(m => m.value === mode);
+    const currentDifficultyIndex = ["easy", "medium", "hard"].indexOf(difficulty);
+    
+    let prevModeIndex = currentModeIndex;
+    let prevDifficultyIndex = currentDifficultyIndex;
+    
+    if (currentDifficultyIndex > 0) {
+      prevDifficultyIndex = currentDifficultyIndex - 1;
+    } else {
+      prevDifficultyIndex = 2;
+      if (currentModeIndex > 0) {
+        prevModeIndex = currentModeIndex - 1;
+      } else {
+        prevModeIndex = MODES.length - 1;
+      }
+    }
+    
+    navigateToChallenge(MODES[prevModeIndex].value, ["easy", "medium", "hard"][prevDifficultyIndex]);
+  };
+
+  const fetchChallenge = async (selectedMode = mode, selectedDifficulty = difficulty, selectedLanguage = language) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/challenge/random?mode=${selectedMode}&difficulty=${selectedDifficulty}&language=${selectedLanguage}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch challenge');
+      }
+      const data = await res.json();
+      setChallenge(data.challenge);
+      setCode(data.challenge.starterCode || "");
       setUserOutput("");
       setFeedback("");
       setDetailedFeedback("");
       setHint("");
       setHintUsed(false);
       setSkipped(false);
+      setAttempts(0);
       setTimeLeft(180);
       setXpEarned(0);
       setShowDetailedFeedback(false);
-    }
-  };
-
-  // Navigate to next challenge
-  const navigateToNext = () => {
-    const difficulties = ['easy', 'medium', 'hard'];
-    const modes = ['fix-bug', 'output-predictor', 'refactor-rush'];
-    
-    let currentModeIndex = modes.indexOf(mode);
-    let currentDifficultyIndex = difficulties.indexOf(difficulty);
-    
-    // Move to next difficulty or next mode
-    if (currentDifficultyIndex < 2) {
-      currentDifficultyIndex++;
-    } else {
-      currentDifficultyIndex = 0;
-      currentModeIndex = (currentModeIndex + 1) % modes.length;
-    }
-    
-    const nextMode = modes[currentModeIndex];
-    const nextDifficulty = difficulties[currentDifficultyIndex];
-    
-    navigateToChallenge(nextMode, nextDifficulty);
-  };
-
-  // Navigate to previous challenge
-  const navigateToPrevious = () => {
-    const difficulties = ['easy', 'medium', 'hard'];
-    const modes = ['fix-bug', 'output-predictor', 'refactor-rush'];
-    
-    let currentModeIndex = modes.indexOf(mode);
-    let currentDifficultyIndex = difficulties.indexOf(difficulty);
-    
-    // Move to previous difficulty or previous mode
-    if (currentDifficultyIndex > 0) {
-      currentDifficultyIndex--;
-    } else {
-      currentDifficultyIndex = 2;
-      currentModeIndex = (currentModeIndex - 1 + modes.length) % modes.length;
-    }
-    
-    const prevMode = modes[currentModeIndex];
-    const prevDifficulty = difficulties[currentDifficultyIndex];
-    
-    navigateToChallenge(prevMode, prevDifficulty);
-  };
-
-  // Fetch random challenge
-  const fetchChallenge = async (selectedMode = mode, selectedDifficulty = difficulty, selectedLanguage = language) => {
-    console.log('Fetching challenge:', { selectedMode, selectedDifficulty, selectedLanguage });
-    setLoading(true);
-    setFeedback("");
-    setDetailedFeedback("");
-    setHint("");
-    setHintUsed(false);
-    setSkipped(false);
-    setTimeLeft(180);
-    setXpEarned(0);
-    setShowDetailedFeedback(false);
-    setActiveTab("description");
-    try {
-      const res = await fetch(`/api/challenge/random?mode=${selectedMode}&difficulty=${selectedDifficulty}&language=${selectedLanguage}`);
-      if (!res.ok) {
-        throw new Error("No challenge found");
-      }
-      const data = await res.json();
-      console.log('Challenge fetched for language:', selectedLanguage, data);
-      setChallenge(data);
-      
-      // Set the appropriate code based on challenge mode
-      if (data.mode === 'output-predictor') {
-        // For output-predictor, don't set any code in editor - users only predict output
-        setCode('');
-      } else if (data.mode === 'fix-bug') {
-        // For fix-bug, start with the buggy code that needs to be fixed
-        setCode(data.starterCode);
-      } else if (data.mode === 'refactor-rush') {
-        // For refactor-rush, start with the inefficient code that needs to be optimized
-        setCode(data.starterCode);
-      } else {
-        // Fallback
-        setCode(data.starterCode);
-      }
-      
-      // Update language state to match the fetched challenge
-      setLanguage(data.language);
-      setUserOutput("");
-      setInitialLoading(false);
     } catch (e) {
-      console.error('Error fetching challenge for language:', selectedLanguage, e);
-      setChallenge(null);
-      setFeedback(`No ${selectedLanguage} challenges found for this mode/difficulty. Please click 'Generate New' to create ${selectedLanguage} challenges using AI.`);
-      setInitialLoading(false);
+      console.error('Error fetching challenge:', e);
+      setFeedback("Error loading challenge. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Timer logic - stop timer when challenge is completed or skipped
-  useEffect(() => {
-    if (timeLeft > 0 && challenge && !skipped && !feedback.includes("🎉") && !feedback.includes("Correct")) {
-      timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    }
-    return () => clearTimeout(timerRef.current);
-  }, [timeLeft, challenge, skipped, feedback]);
-
-  // On mount, fetch challenges and leaderboard
-  useEffect(() => {
-    fetchAllChallenges();
-    fetchLeaderboard();
-    
-    // Fallback timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      console.log('Loading timeout reached, setting initialLoading to false');
-      setInitialLoading(false);
-    }, 10000); // 10 seconds timeout
-    
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line
-  }, []);
-
-  // Initial challenge fetch after initial loading is complete
-  useEffect(() => {
-    if (!initialLoading) {
-      fetchChallenge(mode, difficulty, language);
-    }
-  }, [initialLoading, mode, difficulty, language]);
-
-  // Mode/difficulty/language change
-  useEffect(() => {
-    if (!initialLoading) {
-      fetchAllChallenges();
-      // Also fetch a new challenge for the current language if we have one
-      if (challenge && challenge.language !== language) {
-        fetchChallenge(mode, difficulty, language);
-      }
-    }
-  }, [mode, difficulty, language]);
-
-  // Language change handler
   const handleLanguageChange = (newLanguage) => {
-    console.log('Language changed from', language, 'to', newLanguage);
     setLanguage(newLanguage);
-    // Clear current challenge when language changes
-    setChallenge(null);
-    setCode('');
-    setUserOutput('');
-    setFeedback('');
-    setDetailedFeedback('');
-    setHint('');
+    setFeedback("");
+    setDetailedFeedback("");
+    setHint("");
     setHintUsed(false);
     setSkipped(false);
+    setAttempts(0);
     setTimeLeft(180);
     setXpEarned(0);
     setShowDetailedFeedback(false);
+    fetchAllChallenges();
+    fetchChallenge(mode, difficulty, newLanguage);
   };
 
-  // Submit handler
   const handleSubmit = async () => {
-    if (!challenge) return;
-    console.log('Submitting challenge:', challenge._id);
     setLoading(true);
-    setFeedback("");
-    setDetailedFeedback("");
-    setXpEarned(0);
+    setAttempts(attempts + 1);
     try {
       const res = await fetch("/api/challenge/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
           challengeId: challenge._id,
-          userCode: code,
-          userOutput: userOutput,
+          code: challenge.mode === "output-predictor" ? userOutput : code,
           mode: challenge.mode,
+          language: language,
+          userId: userId,
         }),
       });
       const data = await res.json();
-      console.log('Submission result:', data);
       setFeedback(data.feedback);
       setDetailedFeedback(data.detailedFeedback || "");
-      setXp(data.xp);
-      setRank(data.rank);
-      setAttempts(data.attempts);
       setXpEarned(data.xpEarned || 0);
-      
-      // Don't auto-fetch new challenge, let user navigate manually
-      fetchLeaderboard();
+      if (data.correct) {
+        setXp(xp + (data.xpEarned || 0));
+        if (data.newRank) setRank(data.newRank);
+      }
     } catch (e) {
-      console.error('Submission error:', e);
-      setFeedback("Submission failed. Please try again.");
+      console.error('Error submitting challenge:', e);
+      setFeedback("Error submitting solution. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Hint handler (Gemini integration placeholder)
   const handleHint = async () => {
     setHintUsed(true);
-    setLoading(true);
-    setHint("");
     try {
-      // TODO: Integrate Gemini for smart hints
-      setHint("Hint: Check the comparison operator or logic in the loop.");
+      const res = await fetch("/api/challenge/hint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId: challenge._id }),
+      });
+      const data = await res.json();
+      setHint(data.hint);
     } catch (e) {
-      setHint("No hint available.");
-    } finally {
-      setLoading(false);
+      console.error('Error fetching hint:', e);
+      setHint("Error loading hint. Please try again.");
     }
   };
 
-  // Skip handler
   const handleSkip = () => {
     setSkipped(true);
-    setFeedback("Challenge skipped. No XP awarded.");
+    setFeedback("Challenge skipped. Try the next one!");
   };
 
-  // Timer formatting
-  const min = Math.floor(timeLeft / 60);
-  const sec = timeLeft % 60;
-  const timeDisplay = `${min}:${sec.toString().padStart(2, "0")}`;
-
-  // Get difficulty color
   const getDifficultyColor = (diff) => {
     switch (diff) {
       case "easy": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
@@ -385,144 +278,197 @@ export default function ChallengePage() {
     }
   };
 
+  const timeDisplay = `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`;
+
+  useEffect(() => {
+    fetchAllChallenges();
+    fetchChallenge();
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft > 0 && !skipped) {
+      timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+    } else if (timeLeft === 0 && !skipped) {
+      setFeedback("⏰ Time's up! Challenge failed.");
+    }
+    return () => clearTimeout(timerRef.current);
+  }, [timeLeft, skipped]);
+
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-all duration-700">
+      {/* Animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-3/4 right-1/4 w-80 h-80 bg-gradient-to-r from-pink-400/10 to-orange-400/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-gradient-to-r from-cyan-400/10 to-blue-400/10 rounded-full blur-3xl animate-pulse delay-2000" />
+      </div>
+
       {/* Initial Loading Screen */}
       {initialLoading && (
-        <div className="flex flex-col items-center justify-center min-h-screen">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <div className="text-xl font-semibold text-zinc-700 dark:text-zinc-300">Loading Challenge Game...</div>
+        <div className="flex flex-col items-center justify-center min-h-screen relative z-10">
+          <div className="relative p-12 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl text-center">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center text-white text-3xl font-bold mx-auto mb-6 animate-pulse">
+              🎮
+            </div>
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Loading Challenge Game</div>
+            <div className="text-slate-600 dark:text-slate-400">Preparing your coding adventure...</div>
+          </div>
         </div>
       )}
       
       {/* Main Game UI - only show when not initially loading */}
       {!initialLoading && (
-        <>
-          {/* Top Navigation Bar - LeetCode Style */}
-          <div className="bg-white dark:bg-zinc-800 px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-6">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Weekly Contest - Week {currentWeek}</h1>
-                <div className="flex items-center space-x-4">
-                  <select
-                    className="px-3 py-1 text-sm border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-gray-900 dark:text-white"
-                    value={mode}
-                    onChange={e => setMode(e.target.value)}
-                  >
-                    {MODES.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="px-3 py-1 text-sm border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-gray-900 dark:text-white"
-                    value={difficulty}
-                    onChange={e => setDifficulty(e.target.value)}
-                  >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                  <select
-                    className="px-3 py-1 text-sm border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-700 text-gray-900 dark:text-white"
-                    value={language}
-                    onChange={e => handleLanguageChange(e.target.value)}
-                  >
-                    {LANGUAGES.map(l => (
-                      <option key={l.value} value={l.value}>{l.label}</option>
-                    ))}
-                  </select>
+        <div className="relative z-10">
+          {/* Top Navigation Bar */}
+          <div className="p-6 bg-white/10 backdrop-blur-xl border-b border-white/20">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center text-white text-2xl font-bold">
+                      🎮
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Weekly Contest</h1>
+                      <p className="text-slate-600 dark:text-slate-400">Week {currentWeek}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <select
+                      className="px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+                      value={mode}
+                      onChange={e => setMode(e.target.value)}
+                    >
+                      {MODES.map(m => (
+                        <option key={m.value} value={m.value}>{m.icon} {m.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+                      value={difficulty}
+                      onChange={e => setDifficulty(e.target.value)}
+                    >
+                      <option value="easy">🟢 Easy</option>
+                      <option value="medium">🟡 Medium</option>
+                      <option value="hard">🔴 Hard</option>
+                    </select>
+                    <select
+                      className="px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+                      value={language}
+                      onChange={e => handleLanguageChange(e.target.value)}
+                    >
+                      {LANGUAGES.map(l => (
+                        <option key={l.value} value={l.value}>{l.icon} {l.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">XP:</span>
-                  <span className="font-semibold text-purple-600 dark:text-purple-400">{xp}</span>
+                
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20">
+                      <span className="text-slate-600 dark:text-slate-400">XP:</span>
+                      <span className="font-bold text-purple-600 dark:text-purple-400">{xp}</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20">
+                      <span className="text-slate-600 dark:text-slate-400">Rank:</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">{rank}</span>
+                    </div>
+                    <div className={`flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 ${
+                      timeLeft < 30 ? 'border-red-500/50' : ''
+                    }`}>
+                      <span className="text-slate-600 dark:text-slate-400">Time:</span>
+                      <span className={`font-bold ${timeLeft < 30 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
+                        {timeDisplay}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={showLeaderboardModal}
+                      className="px-6 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105"
+                    >
+                      🏆 Leaderboard
+                    </button>
+                    <button
+                      onClick={generateNewChallenges}
+                      disabled={generatingChallenges}
+                      className="px-6 py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold shadow-lg hover:shadow-green-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {generatingChallenges ? "🔄 Generating..." : "✨ Generate New"}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Rank:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">{rank}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Time:</span>
-                  <span className={`font-semibold ${timeLeft < 30 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                    {timeDisplay}
-                  </span>
-                </div>
-                <button
-                  onClick={showLeaderboardModal}
-                  className="px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                >
-                  Leaderboard
-                </button>
-                <button
-                  onClick={generateNewChallenges}
-                  disabled={generatingChallenges}
-                  className="px-4 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition disabled:opacity-50"
-                >
-                  {generatingChallenges ? "Generating..." : "Generate New"}
-                </button>
               </div>
             </div>
           </div>
 
           {/* Challenge Navigation */}
-          <div className="bg-gray-50 dark:bg-zinc-800 px-6 py-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+          <div className="p-4 bg-white/5 backdrop-blur-sm border-b border-white/10">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-4">
                 <button
                   onClick={navigateToPrevious}
-                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                  className="px-4 py-2 rounded-xl bg-slate-700 text-white font-semibold hover:bg-slate-600 transition-all duration-300 hover:scale-105"
                 >
                   ← Previous
                 </button>
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {mode.replace('-', ' ').toUpperCase()} - {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-                </span>
+                <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20">
+                  <span className="text-slate-600 dark:text-slate-400">
+                    {MODES.find(m => m.value === mode)?.icon} {mode.replace('-', ' ').toUpperCase()}
+                  </span>
+                  <span className="text-slate-400">•</span>
+                  <span className={`px-2 py-1 text-xs font-medium rounded ${getDifficultyColor(difficulty)}`}>
+                    {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+                  </span>
+                </div>
                 <button
                   onClick={navigateToNext}
-                  className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                  className="px-4 py-2 rounded-xl bg-slate-700 text-white font-semibold hover:bg-slate-600 transition-all duration-300 hover:scale-105"
                 >
                   Next →
                 </button>
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Week {currentWeek}</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">|</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">9 Questions</span>
+              <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400">
+                <span>Week {currentWeek}</span>
+                <span>•</span>
+                <span>9 Questions</span>
               </div>
             </div>
           </div>
 
-          {/* Main Content Area - Split Layout */}
-          <div className="flex h-[calc(100vh-140px)]">
-            {/* Left Panel - Problem Description */}
-            <div className="w-1/2 border-r border-gray-200 dark:border-zinc-700 overflow-y-auto">
-              <div className="p-6">
+          {/* Main Content Area */}
+          <div className="max-w-7xl mx-auto p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Panel - Problem Description */}
+              <div className="space-y-6">
                 {challenge ? (
                   <>
                     {/* Problem Header */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{challenge.title}</h2>
-                        <span className={`px-2 py-1 text-xs font-medium rounded ${getDifficultyColor(challenge.difficulty)}`}>
+                    <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{challenge.title}</h2>
+                        <span className={`px-3 py-1 text-sm font-medium rounded-full ${getDifficultyColor(challenge.difficulty)}`}>
                           {challenge.difficulty.charAt(0).toUpperCase() + challenge.difficulty.slice(1)}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Mode: {MODES.find(m => m.value === challenge.mode)?.label}
+                      <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
+                        <span>Mode: {MODES.find(m => m.value === challenge.mode)?.icon} {MODES.find(m => m.value === challenge.mode)?.label}</span>
                       </div>
                     </div>
 
                     {/* Problem Description */}
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Problem Description</h3>
-                      <div className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                        {challenge.description}
+                    <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">📝 Problem Description</h3>
+                      <div className="text-slate-700 dark:text-slate-300 leading-relaxed space-y-4">
+                        <p>{challenge.description}</p>
                         {challenge.mode === 'output-predictor' && challenge.starterCode && (
-                          <div className="mt-4">
-                            <div className="bg-gray-100 dark:bg-zinc-800 p-4 rounded-lg border">
-                              <pre className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{challenge.starterCode}</pre>
-                            </div>
+                          <div className="mt-6 p-4 rounded-2xl bg-slate-900/50 border border-slate-700/50">
+                            <div className="text-sm text-slate-400 mb-2">Code to Analyze:</div>
+                            <pre className="text-sm text-slate-200 whitespace-pre-wrap">{challenge.starterCode}</pre>
                           </div>
                         )}
                       </div>
@@ -530,30 +476,32 @@ export default function ChallengePage() {
 
                     {/* Examples */}
                     {challenge.examples && challenge.examples.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Examples</h3>
-                        {challenge.examples.map((example, index) => (
-                          <div key={index} className="mb-4 p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg">
-                            <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Example {index + 1}:</div>
-                            <div className="text-gray-700 dark:text-gray-300">
-                              <div><strong>Input:</strong> {example.input}</div>
-                              <div><strong>Output:</strong> {example.output}</div>
-                              {example.explanation && (
-                                <div><strong>Explanation:</strong> {example.explanation}</div>
-                              )}
+                      <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">💡 Examples</h3>
+                        <div className="space-y-4">
+                          {challenge.examples.map((example, index) => (
+                            <div key={index} className="p-4 rounded-2xl bg-slate-900/50 border border-slate-700/50">
+                              <div className="text-sm text-slate-400 mb-3">Example {index + 1}:</div>
+                              <div className="space-y-2 text-slate-300">
+                                <div><strong className="text-blue-400">Input:</strong> <code className="bg-slate-800 px-2 py-1 rounded">{example.input}</code></div>
+                                <div><strong className="text-green-400">Output:</strong> <code className="bg-slate-800 px-2 py-1 rounded">{example.output}</code></div>
+                                {example.explanation && (
+                                  <div><strong className="text-yellow-400">Explanation:</strong> {example.explanation}</div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
 
                     {/* Constraints */}
                     {challenge.constraints && challenge.constraints.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Constraints</h3>
-                        <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1">
+                      <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">⚡ Constraints</h3>
+                        <ul className="list-disc list-inside text-slate-700 dark:text-slate-300 space-y-2">
                           {challenge.constraints.map((constraint, index) => (
-                            <li key={index}>{constraint}</li>
+                            <li key={index} className="text-slate-600 dark:text-slate-400">{constraint}</li>
                           ))}
                         </ul>
                       </div>
@@ -561,38 +509,38 @@ export default function ChallengePage() {
 
                     {/* Feedback Section */}
                     {feedback && (
-                      <div className="mt-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Result</h3>
-                        <div className={`p-4 rounded-lg border-2 ${
+                      <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">📊 Result</h3>
+                        <div className={`p-4 rounded-2xl border-2 ${
                           feedback.includes("🎉") || feedback.includes("Correct") 
-                            ? "bg-green-50 border-green-200 dark:bg-green-900 dark:border-green-700" 
-                            : "bg-red-50 border-red-200 dark:bg-red-900 dark:border-red-700"
+                            ? "bg-green-500/10 border-green-500/30" 
+                            : "bg-red-500/10 border-red-500/30"
                         }`}>
-                          <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center justify-between mb-3">
                             <span className={`font-semibold ${
                               feedback.includes("🎉") || feedback.includes("Correct")
-                                ? "text-green-800 dark:text-green-200"
-                                : "text-red-800 dark:text-red-200"
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-red-600 dark:text-red-400"
                             }`}>
                               {feedback}
                             </span>
                             {xpEarned > 0 && (
-                              <span className="text-sm bg-yellow-200 dark:bg-yellow-800 px-2 py-1 rounded font-medium">
+                              <span className="px-3 py-1 rounded-full bg-yellow-500/20 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 font-medium">
                                 +{xpEarned} XP
                               </span>
                             )}
                           </div>
                           {detailedFeedback && (
-                            <div className="mt-3">
+                            <div className="mt-4">
                               <button
                                 onClick={() => setShowDetailedFeedback(!showDetailedFeedback)}
-                                className="text-sm text-blue-600 dark:text-blue-400 underline hover:no-underline"
+                                className="text-sm text-blue-600 dark:text-blue-400 underline hover:no-underline transition-colors"
                               >
                                 {showDetailedFeedback ? "Hide" : "Show"} detailed feedback
                               </button>
                               {showDetailedFeedback && (
-                                <div className="mt-2 p-3 bg-white dark:bg-zinc-800 rounded border text-sm">
-                                  <pre className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{detailedFeedback}</pre>
+                                <div className="mt-3 p-4 rounded-2xl bg-slate-900/50 border border-slate-700/50">
+                                  <pre className="whitespace-pre-wrap text-sm text-slate-300">{detailedFeedback}</pre>
                                 </div>
                               )}
                             </div>
@@ -603,10 +551,10 @@ export default function ChallengePage() {
 
                     {/* Hint Section */}
                     {hint && (
-                      <div className="mt-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Hint</h3>
-                        <div className="p-4 bg-yellow-50 border border-yellow-200 dark:bg-yellow-900 dark:border-yellow-700 rounded-lg">
-                          <div className="text-yellow-800 dark:text-yellow-200">
+                      <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">💡 Hint</h3>
+                        <div className="p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/30">
+                          <div className="text-yellow-600 dark:text-yellow-400">
                             💡 {hint}
                           </div>
                         </div>
@@ -614,129 +562,150 @@ export default function ChallengePage() {
                     )}
                   </>
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="text-gray-500 dark:text-gray-400">No challenge available</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right Panel - Code Editor and Controls */}
-            <div className="w-1/2 flex flex-col">
-              {/* Code Editor */}
-              <div className="flex-1 p-4">
-                {challenge && challenge.mode === "output-predictor" ? (
-                  <div className="h-full">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Predict Output</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                        Analyze the code shown in the description and predict what output it will produce.
-                      </p>
-                      <textarea
-                        className="w-full h-32 p-3 border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-gray-900 dark:text-white resize-none"
-                        placeholder="Enter your predicted output here... (e.g., [1, 2, 3] or 'Hello World')"
-                        value={userOutput}
-                        onChange={e => setUserOutput(e.target.value)}
-                        disabled={loading || skipped || timeLeft === 0}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-full">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        {challenge?.mode === 'fix-bug' ? 'Fix the Bug' : 
-                         challenge?.mode === 'refactor-rush' ? 'Optimize the Code' : 'Your Solution'}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                        {challenge?.mode === 'fix-bug' ? 
-                          'The code below has a bug. Identify and fix it.' :
-                         challenge?.mode === 'refactor-rush' ? 
-                          'The code below is inefficient. Optimize it for better performance.' :
-                          'Write your solution below.'
-                        }
-                      </p>
-                    </div>
-                    <div className="h-[calc(100%-80px)]">
-                      <CodeEditor
-                        value={code}
-                        language={language}
-                        onChange={setCode}
-                        onLanguageChange={setLanguage}
-                        readOnly={loading || skipped || timeLeft === 0}
-                      />
-                    </div>
+                  <div className="p-12 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl text-center">
+                    <div className="text-6xl mb-4">🤔</div>
+                    <div className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No Challenge Available</div>
+                    <div className="text-slate-600 dark:text-slate-400">Try generating new challenges or switching languages.</div>
                   </div>
                 )}
               </div>
 
-              {/* Bottom Controls */}
-              <div className="border-t border-gray-200 dark:border-zinc-700 p-4 bg-gray-50 dark:bg-zinc-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <button
-                      className="px-6 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={handleSubmit}
-                      disabled={skipped || timeLeft === 0 || loading}
-                    >
-                      {loading ? "Submitting..." : "Submit"}
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-yellow-500 text-white font-medium rounded hover:bg-yellow-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={handleHint}
-                      disabled={hintUsed || skipped || timeLeft === 0 || loading}
-                    >
-                      Hint
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={handleSkip}
-                      disabled={skipped || timeLeft === 0 || loading}
-                    >
-                      Skip
-                    </button>
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                    <span>Attempts: {attempts}</span>
-                    {hintUsed && <span className="text-yellow-600">Hint Used</span>}
+              {/* Right Panel - Code Editor and Controls */}
+              <div className="space-y-6">
+                {/* Code Editor */}
+                <div className="rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden">
+                  {challenge && challenge.mode === "output-predictor" ? (
+                    <div className="p-6">
+                      <div className="mb-4">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">🔮 Predict Output</h3>
+                        <p className="text-slate-600 dark:text-slate-400 mb-4">
+                          Analyze the code shown in the description and predict what output it will produce.
+                        </p>
+                        <textarea
+                          className="w-full h-48 p-4 rounded-2xl bg-slate-900/50 border border-slate-700/50 text-slate-300 placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+                          placeholder="Enter your predicted output here... (e.g., [1, 2, 3] or 'Hello World')"
+                          value={userOutput}
+                          onChange={e => setUserOutput(e.target.value)}
+                          disabled={loading || skipped || timeLeft === 0}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-6">
+                      <div className="mb-4">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                          {challenge?.mode === 'fix-bug' ? '🐛 Fix the Bug' : 
+                           challenge?.mode === 'refactor-rush' ? '⚡ Optimize the Code' : '💻 Your Solution'}
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-400 mb-4">
+                          {challenge?.mode === 'fix-bug' ? 
+                            'The code below has a bug. Identify and fix it.' :
+                           challenge?.mode === 'refactor-rush' ? 
+                            'The code below is inefficient. Optimize it for better performance.' :
+                            'Write your solution below.'
+                          }
+                        </p>
+                      </div>
+                      <div className="h-96">
+                        <CodeEditor
+                          value={code}
+                          language={language}
+                          onChange={setCode}
+                          onLanguageChange={setLanguage}
+                          readOnly={loading || skipped || timeLeft === 0}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Controls */}
+                <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        className="px-8 py-3 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold shadow-lg hover:shadow-green-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleSubmit}
+                        disabled={skipped || timeLeft === 0 || loading}
+                      >
+                        {loading ? (
+                          <div className="flex items-center gap-3">
+                            <div className="spinner"></div>
+                            <span>Submitting...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <span>🚀</span>
+                            <span>Submit</span>
+                          </div>
+                        )}
+                      </button>
+                      <button
+                        className="px-6 py-3 rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg hover:shadow-yellow-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleHint}
+                        disabled={hintUsed || skipped || timeLeft === 0 || loading}
+                      >
+                        💡 Hint
+                      </button>
+                      <button
+                        className="px-6 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-pink-500 text-white font-bold shadow-lg hover:shadow-red-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleSkip}
+                        disabled={skipped || timeLeft === 0 || loading}
+                      >
+                        ⏭️ Skip
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400">
+                      <span>Attempts: {attempts}</span>
+                      {hintUsed && <span className="text-yellow-600">💡 Hint Used</span>}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Leaderboard Modal */}
       {showLeaderboard && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-lg p-8 max-w-lg w-full border border-zinc-200 dark:border-zinc-700">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-white">🏆 Leaderboard</h2>
-              <button className="text-lg px-3 py-1 rounded bg-zinc-700 text-white" onClick={() => setShowLeaderboard(false)}>Close</button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8 max-w-2xl w-full border border-white/20">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white">🏆 Leaderboard</h2>
+              <button 
+                className="w-10 h-10 rounded-xl bg-slate-700 text-white flex items-center justify-center hover:bg-slate-600 transition-all duration-300 hover:scale-105" 
+                onClick={() => setShowLeaderboard(false)}
+              >
+                ✕
+              </button>
             </div>
-            <table className="w-full text-left">
-              <thead>
-                <tr>
-                  <th className="py-1 text-white">#</th>
-                  <th className="py-1 text-white">User</th>
-                  <th className="py-1 text-white">XP</th>
-                  <th className="py-1 text-white">Rank</th>
-                  <th className="py-1 text-white">Attempts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.map((u, i) => (
-                  <tr key={u.userId} className="border-b border-zinc-200 dark:border-zinc-700 text-white">
-                    <td className="py-1">{i + 1}</td>
-                    <td className="py-1">{u.userId.slice(-6)}</td>
-                    <td className="py-1">{u.xp}</td>
-                    <td className="py-1">{u.rank}</td>
-                    <td className="py-1">{u.attempts}</td>
+            <div className="overflow-hidden rounded-2xl bg-slate-900/50 border border-slate-700/50">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-700/50">
+                    <th className="py-4 px-6 text-left text-slate-300 font-semibold">#</th>
+                    <th className="py-4 px-6 text-left text-slate-300 font-semibold">User</th>
+                    <th className="py-4 px-6 text-left text-slate-300 font-semibold">XP</th>
+                    <th className="py-4 px-6 text-left text-slate-300 font-semibold">Rank</th>
+                    <th className="py-4 px-6 text-left text-slate-300 font-semibold">Attempts</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {leaderboard.map((u, i) => (
+                    <tr key={u.userId} className="border-b border-slate-700/30 hover:bg-slate-800/30 transition-colors">
+                      <td className="py-4 px-6 text-slate-300">
+                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                      </td>
+                      <td className="py-4 px-6 text-slate-300 font-medium">{u.userId.slice(-6)}</td>
+                      <td className="py-4 px-6 text-slate-300">{u.xp}</td>
+                      <td className="py-4 px-6 text-slate-300">{u.rank}</td>
+                      <td className="py-4 px-6 text-slate-300">{u.attempts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

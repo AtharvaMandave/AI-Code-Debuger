@@ -34,6 +34,17 @@ IMPORTANT BUG DETECTION RULES:
 - If you detect bugs, ALWAYS include them in the "issues" array
 - Common bugs to detect: undefined variables, syntax errors, logical errors, infinite loops, incorrect comparisons, missing semicolons, wrong function calls, etc.
 
+CRITICAL FIX REQUIREMENTS:
+- The "suggested_fix" field should contain ONLY the corrected code, not explanations
+- For simple fixes, provide just the corrected line(s) of code that need to be changed
+- For complex fixes, provide the complete corrected code
+- Do NOT include explanations, comments, or markdown in the suggested_fix
+- The fix should be ready to copy-paste and run immediately
+- Focus on the MINIMAL change needed to fix the bug
+- If fixing a print statement, provide just the corrected print statement
+- If fixing a variable assignment, provide just the corrected assignment
+- If fixing a function call, provide just the corrected function call
+
 For the visualization, each node MUST include:
 - "code_snippet": the code for that block
 - "variables": object of variables in scope or modified in that block
@@ -50,7 +61,7 @@ Respond in this exact JSON structure:
   "explanation": "Your explanation here",
   "bugs_detected": true/false,
   "issues": ["issue1", "issue2"],
-  "suggested_fix": "Your suggested fix here",
+  "suggested_fix": "print('hello')",
   "line_by_line": {
     "1": "line 1 explanation",
     "2": "line 2 explanation"
